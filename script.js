@@ -12,16 +12,17 @@ $('#theme').onclick=()=>{const t=isDark()?'light':'dark';R0.dataset.theme=t;stor
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',paintTheme);
 
 /* ---------- Views: Weather and Currency are separate screens ---------- */
-const VIEWS=['weather','currency'];
+const VIEWS=['weather','currency','namaz'],TITLES={weather:'Weather',currency:'Currency',namaz:'Namaz times'};
 function route(){
   const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):'weather';
   VIEWS.forEach(x=>{$('#v-'+x).hidden=x!==v});
   document.body.dataset.v=v;
   $$('[data-t]').forEach(a=>{const on=a.dataset.t===v;a.classList.toggle('on',on);on?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});
-  document.title=(v==='weather'?'Weather':'Currency')+' | SkyRate';
+  document.title=TITLES[v]+' | SkyRate';
+  if(v==='namaz')startNamaz();
   scrollTo(0,0);
 }
-addEventListener('hashchange',route);route();
+addEventListener('hashchange',route);
 
 /* ---------- Install as an app ---------- */
 let dp=null;
@@ -100,25 +101,31 @@ const paintUnit=()=>$$('#unit button').forEach(b=>b.classList.toggle('on',b.data
 $$('#unit button').forEach(b=>b.onclick=()=>{U=b.dataset.u;store.set('unit',U);paintUnit();if(W)renderW()});
 paintUnit();
 
-/* ---------- City search ---------- */
-let sug=[],st;
-const hideSug=()=>{$('#sug').hidden=true;$('#q').setAttribute('aria-expanded','false')};
-function showSug(msg){const u=$('#sug');u.innerHTML=msg?`<li><p>${msg}</p></li>`:sug.map((c,i)=>`<li><button type="button" data-i="${i}" role="option"><span>${c.name}</span><small>${[c.admin,c.country].filter(Boolean).join(', ')}</small></button></li>`).join('');u.hidden=false;$('#q').setAttribute('aria-expanded','true')}
-async function search(v){
-  try{const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(v)}&count=6&language=en&format=json`);const j=await r.json();
-    sug=(j.results||[]).map(x=>({name:x.name,admin:x.admin1,country:x.country,lat:x.latitude,lon:x.longitude}));showSug(sug.length?'':'No city found. Try another spelling.')}
-  catch(e){sug=[];showSug('Search needs an internet connection.')}
+/* ---------- City search (used by Weather and Namaz) ---------- */
+function setupSearch(qs,us,onPick){
+  const q=$(qs),u=$(us);let sug=[],st;
+  const hide=()=>{u.hidden=true;q.setAttribute('aria-expanded','false')};
+  const show=msg=>{u.innerHTML=msg?`<li><p>${msg}</p></li>`:sug.map((c,i)=>`<li><button type="button" data-i="${i}" role="option"><span>${c.name}</span><small>${[c.admin,c.country].filter(Boolean).join(', ')}</small></button></li>`).join('');u.hidden=false;q.setAttribute('aria-expanded','true')};
+  const choose=c=>{q.value='';hide();onPick(c)};
+  async function go(v){
+    try{const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(v)}&count=6&language=en&format=json`);const j=await r.json();
+      sug=(j.results||[]).map(x=>({name:x.name,admin:x.admin1,country:x.country,lat:x.latitude,lon:x.longitude,tz:x.timezone}));show(sug.length?'':'No city found. Try another spelling.')}
+    catch(e){sug=[];show('Search needs an internet connection.')}
+  }
+  q.oninput=e=>{clearTimeout(st);const v=e.target.value.trim();if(v.length<2)return hide();st=setTimeout(()=>go(v),280)};
+  q.onkeydown=e=>{if(e.key==='Escape')hide();if(e.key==='Enter'&&sug.length&&!u.hidden)choose(sug[0])};
+  u.onclick=e=>{const b=e.target.closest('[data-i]');if(b)choose(sug[+b.dataset.i])};
+  document.addEventListener('click',e=>{if(!q.parentElement.contains(e.target))hide()});
 }
-$('#q').oninput=e=>{clearTimeout(st);const v=e.target.value.trim();if(v.length<2)return hideSug();st=setTimeout(()=>search(v),280)};
-$('#q').onkeydown=e=>{if(e.key==='Escape')hideSug();if(e.key==='Enter'&&sug.length&&!$('#sug').hidden)pick(sug[0])};
-$('#sug').onclick=e=>{const b=e.target.closest('[data-i]');if(b)pick(sug[+b.dataset.i])};
-document.addEventListener('click',e=>{if(!e.target.closest('.sb'))hideSug()});
-function pick(c){city=c;store.set('city',c);recents=[c,...recents.filter(x=>!(x.name===c.name&&x.country===c.country))].slice(0,8);store.set('recent',recents);$('#q').value='';hideSug();paintRecents();loadWeather()}
-function paintRecents(){$('#rc').hidden=!recents.length;$('#rc').innerHTML=recents.map((c,i)=>`<button class="chip" type="button" data-r="${i}">${c.name}</button>`).join('')}
+const addRecent=c=>{recents=[c,...recents.filter(x=>!(x.name===c.name&&x.country===c.country))].slice(0,8);store.set('recent',recents);paintRecents()};
+function pick(c){city=c;store.set('city',c);addRecent(c);loadWeather()}
+function paintRecents(){const h=recents.map((c,i)=>`<button class="chip" type="button" data-r="${i}">${c.name}</button>`).join('');['#rc','#nrc'].forEach(s=>{$(s).hidden=!recents.length;$(s).innerHTML=h})}
 $('#rc').onclick=e=>{const b=e.target.closest('[data-r]');if(b)pick(recents[+b.dataset.r])};
+const locate=cb=>{if(!navigator.geolocation){toast('Location is not supported on this device');return}
+  navigator.geolocation.getCurrentPosition(p=>cb({name:'My location',country:'',lat:p.coords.latitude,lon:p.coords.longitude,tz:Intl.DateTimeFormat().resolvedOptions().timeZone}),()=>toast('Location was blocked. Type a city instead.'))};
+setupSearch('#q','#sug',pick);
+$('#loc').onclick=()=>locate(pick);
 paintRecents();
-$('#loc').onclick=()=>{if(!navigator.geolocation){toast('Location is not supported on this device');return}
-  navigator.geolocation.getCurrentPosition(p=>pick({name:'My location',country:'',lat:p.coords.latitude,lon:p.coords.longitude}),()=>toast('Location was blocked. Type a city instead.'))};
 
 /* ---------- Currency ---------- */
 let RT=null,pair=store.get('pair',['USD','PKR']),stamp='',rStale=false,DN=null;
@@ -152,4 +159,95 @@ $('#rl').onclick=e=>{const b=e.target.closest('[data-c]');if(b){$('#to').value=b
 $('#swap').onclick=()=>{const f=$('#from').value;$('#from').value=$('#to').value;$('#to').value=f;convert()};
 setInterval(loadRates,1800000);
 
-loadWeather();loadRates();
+
+/* ---------- Namaz times + Qibla compass ---------- */
+var nLoaded=false;
+let ncity=store.get('ncity',{name:'Karachi',admin:'Sindh',country:'Pakistan',lat:24.8607,lon:67.0011,tz:'Asia/Karachi'}),nm=store.get('nmethod',1),ns=store.get('nschool',1),N=null,nstale=false;
+const PR=[['Fajr','الفجر'],['Sunrise','الشروق'],['Dhuhr','الظهر'],['Asr','العصر'],['Maghrib','المغرب'],['Isha','العشاء']];
+const hmOf=s=>{const m=(s||'').match(/(\d{1,2}):(\d{2})/);return m?[+m[1],+m[2]]:[0,0]};
+const t12=s=>{const[h,m]=hmOf(s);return (h%12||12)+':'+String(m).padStart(2,'0')+(h<12?' AM':' PM')};
+const secOf=s=>{const[h,m]=hmOf(s);return h*3600+m*60};
+const dateIn=tz=>{try{return new Date().toLocaleDateString('en-GB',{timeZone:tz||undefined,day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-')}catch(e){return tz?dateIn():''}};
+const nowIn=tz=>{try{const p=new Date().toLocaleTimeString('en-GB',{timeZone:tz||undefined,hourCycle:'h23',hour:'2-digit',minute:'2-digit',second:'2-digit'}).split(':').map(Number);return (p[0]%24)*3600+p[1]*60+p[2]}catch(e){return tz?nowIn():0}};
+function startNamaz(){if(nLoaded)return;nLoaded=true;$('#cmpsvg').innerHTML=dialHTML();$('#nm').value=String(nm);$('#ns').value=String(ns);loadNamaz()}
+async function loadNamaz(){
+  updateQibla();
+  const h=$('#nhero');h.dataset.w='load';h.innerHTML='<div class="sk"></div>';
+  const d=dateIn(ncity.tz),key=[d,ncity.lat,ncity.lon,nm,ns].join('|');
+  const url=`https://api.aladhan.com/v1/timings/${d}?latitude=${ncity.lat}&longitude=${ncity.lon}&method=${nm}&school=${ns}${ncity.tz?'&timezonestring='+encodeURIComponent(ncity.tz):''}`;
+  try{const r=await fetch(url);if(!r.ok)throw 0;const j=await r.json();if(j.code!==200)throw 0;N=j.data;nstale=false;store.set('nc',{k:key,d:N})}
+  catch(e){const c=store.get('nc',null);if(c&&c.k===key){N=c.d;nstale=true}else{N=null;h.dataset.w='err';h.innerHTML='<div class="err"><h2>Couldn’t load the prayer times</h2><p class="mu">Check your internet connection and try again.</p><button class="btn" id="nretry" type="button">Try again</button></div>';$('#ntimes').innerHTML='';$('#nretry').onclick=loadNamaz;return}}
+  renderN();
+}
+function renderN(){
+  const T0=N.timings,g=N.date.gregorian,hj=N.date.hijri,h=$('#nhero'),mn=(N.meta.method&&N.meta.method.name)||'';
+  h.dataset.w='ok';
+  h.innerHTML=`<svg class="deco" viewBox="0 0 100 100" aria-hidden="true"><path d="M62 10A40 40 0 1 0 90 64 32 32 0 1 1 62 10z" fill="currentColor"/></svg>
+<div class="ht"><div><h1>${ncity.name}</h1><p>${[ncity.admin,ncity.country].filter(Boolean).join(', ')}${ncity.admin||ncity.country?' · ':''}${g.weekday&&g.weekday.en?g.weekday.en+', ':''}${N.date.readable}</p><p class="hj">${hj.day} ${hj.month.en} ${hj.year} AH</p></div><button class="ib gl" id="nrf" type="button" aria-label="Refresh prayer times">↻</button></div>
+<div><p class="nl">Next prayer</p><div class="nn"><span id="nn"></span><b id="nt"></b></div><p class="nc" id="nc"></p></div>
+<p class="upd">${mn?mn+' · ':''}${ns?'Hanafi':'Standard'} Asr${nstale?'<span class="off">Offline, saved times</span>':''}</p>`;
+  $('#nrf').onclick=loadNamaz;
+  $('#ntimes').innerHTML=PR.map(([n,ar])=>`<div class="pr${n==='Sunrise'?' sun':''}" data-p="${n}"><span>${n}</span><small lang="ar" dir="rtl">${ar}</small><b>${t12(T0[n])}</b></div>`).join('');
+  paintNext();
+}
+function paintNext(){
+  if(!N)return;const T0=N.timings,now=nowIn(N.meta.timezone);
+  let nx=['Fajr','Dhuhr','Asr','Maghrib','Isha'].find(n=>secOf(T0[n])>now),tom=false,diff;
+  if(!nx){nx='Fajr';tom=true;diff=86400-now+secOf(T0.Fajr)}else diff=secOf(T0[nx])-now;
+  $$('#ntimes .pr').forEach(c=>{const p=c.dataset.p;c.classList.toggle('next',p===nx&&!tom);c.classList.toggle('past',secOf(T0[p])<=now)});
+  const nn=$('#nn');if(!nn)return;
+  nn.textContent=nx+(tom?' (tomorrow)':'');$('#nt').textContent=t12(T0[nx]);
+  const m=Math.max(1,Math.ceil(diff/60)),hh=Math.floor(m/60);$('#nc').textContent='in '+(hh?hh+'h ':'')+(m%60)+'m';
+}
+setInterval(()=>{if(!nLoaded||!N)return;paintNext();if(dateIn(N.meta.timezone)!==N.date.gregorian.date)loadNamaz()},20000);
+function npick(c){ncity=c;store.set('ncity',c);addRecent(c);loadNamaz()}
+setupSearch('#nq','#nsug',npick);
+$('#nloc').onclick=()=>locate(npick);
+$('#nrc').onclick=e=>{const b=e.target.closest('[data-r]');if(b)npick(recents[+b.dataset.r])};
+$('#nm').onchange=e=>{nm=+e.target.value;store.set('nmethod',nm);loadNamaz()};
+$('#ns').onchange=e=>{ns=+e.target.value;store.set('nschool',ns);loadNamaz()};
+
+/* Qibla: bearing from the city to the Kaaba (great-circle) */
+const KAABA=[21.422487,39.826206],PTS=['North','North-northeast','Northeast','East-northeast','East','East-southeast','Southeast','South-southeast','South','South-southwest','Southwest','West-southwest','West','West-northwest','Northwest','North-northwest'];
+function qibla(lat,lon){const r=Math.PI/180,f1=lat*r,f2=KAABA[0]*r,dl=(KAABA[1]-lon)*r;
+  const b=(Math.atan2(Math.sin(dl)*Math.cos(f2),Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl))/r+360)%360;
+  const a=Math.sin((f2-f1)/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;
+  return{b,km:6371*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))}}
+let qb=qibla(ncity.lat,ncity.lon),heading=null,live=false,rot=0,ali=false;
+const md=(x,n)=>((x%n)+n)%n;
+function dialHTML(){
+  let t='';for(let a=0;a<360;a+=5){const len=a%30===0?14:a%10===0?8:5;t+=`<line class="${a%30===0?'tl2':'tk'}" x1="150" y1="20" x2="150" y2="${20+len}" transform="rotate(${a} 150 150)"/>`}
+  const pt=(a,r)=>[150+r*Math.sin(a*Math.PI/180),150-r*Math.cos(a*Math.PI/180)];
+  const card=[['N',0],['E',90],['S',180],['W',270]].map(([c,a])=>{const[x,y]=pt(a,88);return `<text class="${c==='N'?'nrt':''}" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${c}</text>`}).join('');
+  const deg=[30,60,120,150,210,240,300,330].map(a=>{const[x,y]=pt(a,104);return `<text class="dg" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${a}</text>`}).join('');
+  return `<g id="dial"><circle class="ring" cx="150" cy="150" r="136"/>${t}<g id="qn"><line x1="150" y1="150" x2="150" y2="52" stroke="#10B981" stroke-width="4" stroke-linecap="round"/><g transform="translate(150 28)"><rect x="-13" y="-13" width="26" height="26" rx="5" fill="#15181F"/><rect x="-13" y="-6" width="26" height="5" fill="#E2B656"/></g></g>${card}${deg}</g><circle cx="150" cy="150" r="7" fill="var(--tx)"/><path d="M150 3l9 15h-18z" fill="var(--ac)"/>`;
+}
+function updateQibla(){
+  qb=qibla(ncity.lat,ncity.lon);
+  $('#qcity').textContent=ncity.name;
+  $('#qdeg').textContent=qb.b.toFixed(1)+'°';
+  $('#qdir').textContent=PTS[Math.round(qb.b/22.5)%16]+' (measured from North, clockwise)';
+  $('#qdist').textContent=Math.round(qb.km).toLocaleString('en-US')+' km to the Kaaba';
+  const n=$('#qn');if(n)n.setAttribute('transform',`rotate(${qb.b.toFixed(2)} 150 150)`);
+  paintCmp();
+}
+function paintCmp(){
+  const d=$('#dial');if(!d)return;let tgt=0;
+  if(live&&heading!==null){tgt=-heading;const diff=md(qb.b-heading+180,360)-180,ok=Math.abs(diff)<=3;
+    $('#cmp').classList.toggle('ok',ok);
+    $('#qmsg').textContent=ok?'You’re facing the Qibla':`Turn ${diff>0?'right':'left'} ${Math.round(Math.abs(diff))}° to face the Qibla`;
+    if(ok&&!ali&&navigator.vibrate)navigator.vibrate(40);ali=ok}
+  else{$('#cmp').classList.remove('ok');ali=false;$('#qmsg').textContent=live?'Waiting for the compass…':'North is at the top. Turn on the live compass on your phone to rotate the dial with you.'}
+  rot+=md(tgt-rot+180,360)-180;d.style.transform=`rotate(${rot}deg)`;
+}
+function onOri(e){let h=null;if(typeof e.webkitCompassHeading==='number')h=e.webkitCompassHeading;else if(e.absolute&&typeof e.alpha==='number')h=360-e.alpha;if(h===null)return;heading=md(h+((screen.orientation&&screen.orientation.angle)||0),360);paintCmp()}
+async function toggleCmp(){
+  if(live){removeEventListener('deviceorientationabsolute',onOri,true);removeEventListener('deviceorientation',onOri,true);live=false;heading=null;$('#cmpbtn').textContent='Turn on live compass';paintCmp();return}
+  if(!('DeviceOrientationEvent' in window)){toast('This device has no compass sensor');return}
+  try{if(typeof DeviceOrientationEvent.requestPermission==='function'){const r=await DeviceOrientationEvent.requestPermission();if(r!=='granted'){toast('Compass permission was denied');return}}}catch(e){toast('Could not start the compass');return}
+  addEventListener('deviceorientationabsolute',onOri,true);addEventListener('deviceorientation',onOri,true);live=true;$('#cmpbtn').textContent='Turn off live compass';paintCmp();
+  setTimeout(()=>{if(live&&heading===null)toast('No compass reading yet. Use a phone and allow motion sensors.')},2500);
+}
+$('#cmpbtn').onclick=toggleCmp;
+
+loadWeather();loadRates();route();
