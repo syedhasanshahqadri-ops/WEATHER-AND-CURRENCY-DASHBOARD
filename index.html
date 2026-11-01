@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SkyRate | Weather and currency</title>
+<meta name="description" content="Live weather for any city and live currency exchange rates. Install it as an app.">
+<meta name="theme-color" content="#F1F4FA" id="tc">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SkyRate">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-v="weather">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1F5FB"/><stop offset="1" stop-color="#A9B8CE"/></linearGradient></defs></svg>
+
+<header class="top"><div class="wrap">
+<a class="logo" href="#weather"><img src="icons/icon-192.png" alt="">SkyRate</a>
+<nav class="tabs" aria-label="Sections"><a href="#weather" data-t="weather">Weather</a><a href="#currency" data-t="currency">Currency</a></nav>
+<div class="nr">
+<button class="inst" id="install" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg><span>Install app</span></button>
+<button class="ib" id="theme" type="button"></button>
+</div>
+</div></header>
+
+<main>
+<section class="view" id="v-weather"><div class="wrap">
+<div class="sbar">
+<div class="sb"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search a city, like Lahore or London" autocomplete="off" aria-label="Search city" aria-controls="sug" aria-expanded="false"><ul id="sug" role="listbox" hidden></ul></div>
+<div class="sa">
+<button class="pill" id="loc" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/><circle cx="12" cy="12" r="7"/></svg><span>My location</span></button>
+<div class="seg" id="unit" role="group" aria-label="Temperature unit"><button type="button" data-u="C">°C</button><button type="button" data-u="F">°F</button></div>
+</div>
+</div>
+<div class="rc" id="rc" aria-label="Recent cities"></div>
+<div class="ban" id="ban" hidden><p><b>Get SkyRate on your device</b><span class="mu sm">Install it like an app. It opens in its own window and works offline with saved data.</span></p><button class="inst" id="bi" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg><span>Install app</span></button><button class="bx" id="bx" type="button" aria-label="Dismiss">×</button></div>
+<div class="wg">
+<section class="hero" id="hero" data-w="load" aria-live="polite"><div class="sk"></div></section>
+<section class="cd dt"><h2>Today’s details</h2><div class="tiles" id="tiles"></div></section>
+<section class="cd hrs"><h2>Next 24 hours</h2><div class="hr" id="hr"></div></section>
+<section class="cd dys"><h2>7-day forecast</h2><div id="dy"></div></section>
+</div>
+</div></section>
+
+<section class="view" id="v-currency" hidden><div class="wrap">
+<div class="vh"><h1>Currency</h1><p>Live exchange rates for more than 150 currencies.</p></div>
+<div class="cg">
+<section class="cd"><h2>Converter</h2>
+<div class="fld"><label for="amt">Amount</label><input id="amt" type="number" inputmode="decimal" step="any" value="1" min="0"></div>
+<div class="qa" id="qa"></div>
+<div class="pair"><div class="fld"><label for="from">From</label><select id="from"></select></div><button class="ib" id="swap" type="button" aria-label="Swap currencies">⇅</button><div class="fld"><label for="to">To</label><select id="to"></select></div></div>
+<div class="cres" aria-live="polite"><small id="outl">Loading…</small><div class="big" id="out">--</div><small id="rt"></small></div>
+</section>
+<section class="cd"><div class="rh"><h2>Popular rates</h2><span class="mu sm" id="up"></span></div><div class="rgrid" id="rl"></div></section>
+</div>
+</div></section>
+</main>
+
+<footer><div class="wrap">Weather by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>. Rates by <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">ExchangeRate-API</a>.</div></footer>
+
+<nav class="bn" aria-label="Sections">
+<a href="#weather" data-t="weather"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 11a3.500 3.500 0 0 0 1 7z"/></svg>Weather</a>
+<a href="#currency" data-t="currency"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.500 9a3 3 0 0 0-2.500-1.200c-1.500 0-2.700.8-2.700 2s1.200 1.600 2.700 2 2.700.8 2.700 2-1.200 2-2.700 2A3.200 3.200 0 0 1 9.300 15M12 6.500v1.300m0 8.400v1.300"/></svg>Currency</a>
+</nav>
+
+<dialog id="ins"><h2>Install SkyRate</h2><div id="insb"></div><button class="btn" id="insx" type="button">Got it</button></dialog>
+<div class="toast" id="toast" role="status"></div>
+<script src="script.js"></script>
+</body>
+</html>
