@@ -22,7 +22,7 @@
 
 <header class="top"><div class="wrap">
 <a class="logo" href="#weather"><img src="icons/icon-192.png" alt="">SkyRate</a>
-<nav class="tabs" aria-label="Sections"><a href="#weather" data-t="weather">Weather</a><a href="#currency" data-t="currency">Currency</a></nav>
+<nav class="tabs" aria-label="Sections"><a href="#weather" data-t="weather">Weather</a><a href="#currency" data-t="currency">Currency</a><a href="#namaz" data-t="namaz">Namaz</a></nav>
 <div class="nr">
 <button class="inst" id="install" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg><span>Install app</span></button>
 <button class="ib" id="theme" type="button"></button>
@@ -60,6 +60,28 @@
 <section class="cd"><div class="rh"><h2>Popular rates</h2><span class="mu sm" id="up"></span></div><div class="rgrid" id="rl"></div></section>
 </div>
 </div></section>
+
+<section class="view" id="v-namaz" hidden><div class="wrap">
+<div class="sbar">
+<div class="sb"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="nq" type="search" placeholder="Search a city for namaz times" autocomplete="off" aria-label="Search city for namaz times" aria-controls="nsug" aria-expanded="false"><ul id="nsug" role="listbox" hidden></ul></div>
+<div class="sa"><button class="pill" id="nloc" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/><circle cx="12" cy="12" r="7"/></svg><span>My location</span></button></div>
+</div>
+<div class="rc" id="nrc" aria-label="Recent cities"></div>
+<div class="ng">
+<section class="nhero" id="nhero" data-w="load" aria-live="polite"><div class="sk"></div></section>
+<section class="cd ntimes"><h2>Today’s prayer times</h2><div class="pt" id="ntimes"></div></section>
+<section class="cd nset"><h2>Calculation settings</h2>
+<div class="fld"><label for="nm">Calculation method</label><select id="nm"><option value="1">University of Islamic Sciences, Karachi</option><option value="0">Shia Ithna-Ashari (Jafari)</option><option value="3">Muslim World League</option><option value="2">ISNA (North America)</option><option value="4">Umm al-Qura, Makkah</option><option value="5">Egyptian General Authority</option><option value="13">Diyanet, Turkey</option></select></div>
+<div class="fld"><label for="ns">Asr time</label><select id="ns"><option value="1">Hanafi (later Asr)</option><option value="0">Standard (Shafi’i, Maliki, Hanbali)</option></select></div>
+<p class="mu sm">Times are calculated and can differ by a few minutes from your local mosque. Follow your mosque’s timetable if it is different.</p></section>
+<section class="cd ncmp"><div class="rh"><h2>Qibla compass</h2><span class="mu sm" id="qcity"></span></div>
+<div class="cmp" id="cmp"><svg id="cmpsvg" viewBox="0 0 300 300" role="img" aria-label="Qibla compass"></svg></div>
+<div class="qinfo"><b id="qdeg">--</b><span id="qdir"></span><span class="mu sm" id="qdist"></span></div>
+<p class="qmsg" id="qmsg" aria-live="polite"></p>
+<button class="btn" id="cmpbtn" type="button">Turn on live compass</button>
+<p class="mu sm" style="margin-top:12px">The green needle points to the Kaaba in Makkah from the city you selected. Keep your phone flat and away from metal and magnets. If the needle looks wrong, move the phone in a figure 8 to calibrate it.</p></section>
+</div>
+</div></section>
 </main>
 
 <footer><div class="wrap">Weather by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>. Rates by <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">ExchangeRate-API</a>.</div></footer>
@@ -67,6 +89,7 @@
 <nav class="bn" aria-label="Sections">
 <a href="#weather" data-t="weather"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 11a3.500 3.500 0 0 0 1 7z"/></svg>Weather</a>
 <a href="#currency" data-t="currency"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.500 9a3 3 0 0 0-2.500-1.200c-1.500 0-2.700.8-2.700 2s1.200 1.600 2.700 2 2.700.8 2.700 2-1.200 2-2.700 2A3.200 3.200 0 0 1 9.300 15M12 6.500v1.300m0 8.400v1.300"/></svg>Currency</a>
+<a href="#namaz" data-t="namaz"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.500A8 8 0 1 1 9.500 4a6.500 6.500 0 0 0 10.500 10.500z"/></svg>Namaz</a>
 </nav>
 
 <dialog id="ins"><h2>Install SkyRate</h2><div id="insb"></div><button class="btn" id="insx" type="button">Got it</button></dialog>
