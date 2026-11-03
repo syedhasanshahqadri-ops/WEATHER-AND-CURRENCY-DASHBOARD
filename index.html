@@ -69,7 +69,8 @@
 <div class="rc" id="nrc" aria-label="Recent cities"></div>
 <div class="ng">
 <section class="nhero" id="nhero" data-w="load" aria-live="polite"><div class="sk"></div></section>
-<section class="cd ntimes"><h2>Today’s prayer times</h2><div class="pt" id="ntimes"></div></section>
+<section class="cd ntimes"><div class="rh"><h2>Today’s prayer times</h2><button class="pill" id="alall" type="button" aria-pressed="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.500-2V10a4.500 4.500 0 0 0-9 0v5zM10 20a2 2 0 0 0 4 0"/></svg><span id="alalls">Alarm for all</span></button></div><div class="pt" id="ntimes"></div>
+<div class="alrow"><p class="mu sm" id="alnote"></p><button class="pill" id="altest" type="button">Test alarm</button></div></section>
 <section class="cd nset"><h2>Calculation settings</h2>
 <div class="fld"><label for="nm">Calculation method</label><select id="nm"><option value="1">University of Islamic Sciences, Karachi</option><option value="0">Shia Ithna-Ashari (Jafari)</option><option value="3">Muslim World League</option><option value="2">ISNA (North America)</option><option value="4">Umm al-Qura, Makkah</option><option value="5">Egyptian General Authority</option><option value="13">Diyanet, Turkey</option></select></div>
 <div class="fld"><label for="ns">Asr time</label><select id="ns"><option value="1">Hanafi (later Asr)</option><option value="0">Standard (Shafi’i, Maliki, Hanbali)</option></select></div>
@@ -93,6 +94,7 @@
 </nav>
 
 <dialog id="ins"><h2>Install SkyRate</h2><div id="insb"></div><button class="btn" id="insx" type="button">Got it</button></dialog>
+<dialog id="alr" aria-labelledby="alname"><div class="alb"><svg class="bellbig" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.500-2V10a4.500 4.500 0 0 0-9 0v5zM10 20a2 2 0 0 0 4 0" fill="currentColor"/></svg></div><p class="mu" id="alsub">It’s time for</p><h2 id="alname">Fajr</h2><p class="alar" id="alar" lang="ar" dir="rtl"></p><p class="alt" id="alt"></p><p class="mu sm" id="alhint" hidden>Tap the screen to hear the alarm.</p><div class="alact"><button class="btn" id="alstop" type="button">Stop alarm</button><button class="btn alt2" id="alsnz" type="button">Snooze 5 min</button></div></dialog>
 <div class="toast" id="toast" role="status"></div>
 <script src="script.js"></script>
 </body>
