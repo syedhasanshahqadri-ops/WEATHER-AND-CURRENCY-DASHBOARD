@@ -44,7 +44,11 @@ $('#bx').onclick=()=>{store.set('bandis',true);syncInstall()};
 $('#insx').onclick=()=>$('#ins').close();
 matchMedia('(display-mode: standalone)').addEventListener?.('change',syncInstall);
 syncInstall();
-if('serviceWorker' in navigator&&location.protocol.startsWith('http'))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
+  const had=!!navigator.serviceWorker.controller;let reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!reloaded){reloaded=true;location.reload()}});
+  addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
 
 /* ---------- Weather helpers ---------- */
 const LBL={0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Rime fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',56:'Freezing drizzle',57:'Freezing drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',66:'Freezing rain',67:'Freezing rain',71:'Light snow',73:'Snow',75:'Heavy snow',77:'Snow grains',80:'Rain showers',81:'Rain showers',82:'Violent showers',85:'Snow showers',86:'Snow showers',95:'Thunderstorm',96:'Thunderstorm with hail',99:'Thunderstorm with hail'};
@@ -72,8 +76,8 @@ const uvL=u=>u<3?'Low':u<6?'Moderate':u<8?'High':u<11?'Very high':'Extreme';
 
 /* ---------- Weather ---------- */
 const wurl=c=>`https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max&timezone=auto&forecast_days=7`;
-async function loadWeather(){
-  const h=$('#hero');h.dataset.w='load';h.innerHTML='<div class="sk"></div>';
+async function loadWeather(silent){
+  const h=$('#hero');if(silent!==true){h.dataset.w='load';h.innerHTML='<div class="sk"></div>'}
   const key=city.lat+','+city.lon;
   try{const r=await fetch(wurl(city));if(!r.ok)throw 0;W=await r.json();stale=false;store.set('wc',{k:key,d:W})}
   catch(e){const c=store.get('wc',null);if(c&&c.k===key){W=c.d;stale=true}else{W=null;h.dataset.w='err';h.innerHTML='<div class="err"><h2>Couldn’t load the weather</h2><p class="mu">Check your internet connection and try again.</p><button class="btn" id="retry" type="button">Try again</button></div>';$('#tiles').innerHTML='';$('#hr').innerHTML='';$('#dy').innerHTML='';$('#retry').onclick=loadWeather;return}}
@@ -94,7 +98,7 @@ function renderW(){
   $('#dy').innerHTML=d.time.map((x,i)=>{const mn=d.temperature_2m_min[i],mx=d.temperature_2m_max[i];return `<div class="dr2"><b>${i?new Date(x+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'}):'Today'}</b>${icon(kind(d.weather_code[i]))}<small class="pc">${d.precipitation_probability_max[i]??0}%</small><small>${T(mn)}</small><div class="rg"><i style="left:${(mn-dl)/sp*100}%;width:${Math.max(8,(mx-mn)/sp*100)}%"></i></div><b>${T(mx)}</b></div>`}).join('');
 }
 const clock=()=>{const e=$('#lt');if(e&&W)e.textContent=new Date().toLocaleString('en-US',{timeZone:W.timezone,weekday:'short',hour:'numeric',minute:'2-digit'})};
-setInterval(clock,30000);setInterval(loadWeather,600000);
+setInterval(clock,30000);setInterval(()=>loadWeather(true),600000);
 
 /* ---------- Units ---------- */
 const paintUnit=()=>$$('#unit button').forEach(b=>b.classList.toggle('on',b.dataset.u===U));
@@ -167,7 +171,7 @@ const PR=[['Fajr','الفجر'],['Sunrise','الشروق'],['Dhuhr','الظهر'
 const hmOf=s=>{const m=(s||'').match(/(\d{1,2}):(\d{2})/);return m?[+m[1],+m[2]]:[0,0]};
 const t12=s=>{const[h,m]=hmOf(s);return (h%12||12)+':'+String(m).padStart(2,'0')+(h<12?' AM':' PM')};
 const secOf=s=>{const[h,m]=hmOf(s);return h*3600+m*60};
-const dateIn=tz=>{try{return new Date().toLocaleDateString('en-GB',{timeZone:tz||undefined,day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-')}catch(e){return tz?dateIn():''}};
+const dateIn=(tz,off=0)=>{try{return new Date(Date.now()+off*864e5).toLocaleDateString('en-GB',{timeZone:tz||undefined,day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-')}catch(e){return tz?dateIn(undefined,off):''}};
 const nowIn=tz=>{try{const p=new Date().toLocaleTimeString('en-GB',{timeZone:tz||undefined,hourCycle:'h23',hour:'2-digit',minute:'2-digit',second:'2-digit'}).split(':').map(Number);return (p[0]%24)*3600+p[1]*60+p[2]}catch(e){return tz?nowIn():0}};
 function startNamaz(){if(nLoaded)return;nLoaded=true;$('#cmpsvg').innerHTML=dialHTML();$('#nm').value=String(nm);$('#ns').value=String(ns);loadNamaz()}
 async function loadNamaz(){
@@ -177,7 +181,14 @@ async function loadNamaz(){
   const url=`https://api.aladhan.com/v1/timings/${d}?latitude=${ncity.lat}&longitude=${ncity.lon}&method=${nm}&school=${ns}${ncity.tz?'&timezonestring='+encodeURIComponent(ncity.tz):''}`;
   try{const r=await fetch(url);if(!r.ok)throw 0;const j=await r.json();if(j.code!==200)throw 0;N=j.data;nstale=false;store.set('nc',{k:key,d:N})}
   catch(e){const c=store.get('nc',null);if(c&&c.k===key){N=c.d;nstale=true}else{N=null;h.dataset.w='err';h.innerHTML='<div class="err"><h2>Couldn’t load the prayer times</h2><p class="mu">Check your internet connection and try again.</p><button class="btn" id="nretry" type="button">Try again</button></div>';$('#ntimes').innerHTML='';$('#nretry').onclick=loadNamaz;return}}
-  renderN();
+  renderN();loadTomorrow();
+}
+let NT=null;
+async function loadTomorrow(){
+  const k=[dateIn(ncity.tz,1),ncity.lat,ncity.lon,nm,ns].join('|');
+  try{const r=await fetch(`https://api.aladhan.com/v1/timings/${dateIn(ncity.tz,1)}?latitude=${ncity.lat}&longitude=${ncity.lon}&method=${nm}&school=${ns}${ncity.tz?'&timezonestring='+encodeURIComponent(ncity.tz):''}`);const j=await r.json();if(!r.ok||j.code!==200)throw 0;NT=j.data;store.set('nct',{k,d:NT})}
+  catch(e){const c=store.get('nct',null);NT=c&&c.k===k?c.d:null}
+  paintNext();
 }
 function renderN(){
   const T0=N.timings,g=N.date.gregorian,hj=N.date.hijri,h=$('#nhero'),mn=(N.meta.method&&N.meta.method.name)||'';
@@ -187,25 +198,90 @@ function renderN(){
 <div><p class="nl">Next prayer</p><div class="nn"><span id="nn"></span><b id="nt"></b></div><p class="nc" id="nc"></p></div>
 <p class="upd">${mn?mn+' · ':''}${ns?'Hanafi':'Standard'} Asr${nstale?'<span class="off">Offline, saved times</span>':''}</p>`;
   $('#nrf').onclick=loadNamaz;
-  $('#ntimes').innerHTML=PR.map(([n,ar])=>`<div class="pr${n==='Sunrise'?' sun':''}" data-p="${n}"><span>${n}</span><small lang="ar" dir="rtl">${ar}</small><b>${t12(T0[n])}</b></div>`).join('');
-  paintNext();
+  $('#ntimes').innerHTML=PR.map(([n,ar])=>`<div class="pr${n==='Sunrise'?' sun':''}" data-p="${n}"><span>${n}</span><small lang="ar" dir="rtl">${ar}</small><b>${t12(T0[n])}</b>${n==='Sunrise'?'':`<button class="bell" type="button" data-al="${n}" aria-pressed="false" aria-label="Alarm for ${n}: off">${BELL}</button>`}</div>`).join('');
+  paintAlarm();paintNext();
 }
 function paintNext(){
   if(!N)return;const T0=N.timings,now=nowIn(N.meta.timezone);
   let nx=['Fajr','Dhuhr','Asr','Maghrib','Isha'].find(n=>secOf(T0[n])>now),tom=false,diff;
-  if(!nx){nx='Fajr';tom=true;diff=86400-now+secOf(T0.Fajr)}else diff=secOf(T0[nx])-now;
+  let nt=T0[nx];
+  if(!nx){nx='Fajr';tom=true;nt=NT?NT.timings.Fajr:T0.Fajr;diff=86400-now+secOf(nt)}else diff=secOf(nt)-now;
   $$('#ntimes .pr').forEach(c=>{const p=c.dataset.p;c.classList.toggle('next',p===nx&&!tom);c.classList.toggle('past',secOf(T0[p])<=now)});
   const nn=$('#nn');if(!nn)return;
-  nn.textContent=nx+(tom?' (tomorrow)':'');$('#nt').textContent=t12(T0[nx]);
+  nn.textContent=nx+(tom?' (tomorrow)':'');$('#nt').textContent=t12(nt);
   const m=Math.max(1,Math.ceil(diff/60)),hh=Math.floor(m/60);$('#nc').textContent='in '+(hh?hh+'h ':'')+(m%60)+'m';
 }
-setInterval(()=>{if(!nLoaded||!N)return;paintNext();if(dateIn(N.meta.timezone)!==N.date.gregorian.date)loadNamaz()},20000);
+setInterval(()=>{if(!nLoaded||!N)return;paintNext();const d=dateIn(N.meta.timezone);
+  if(d!==N.date.gregorian.date){if(NT&&NT.date.gregorian.date===d){N=NT;NT=null;nstale=false;renderN();loadTomorrow()}else loadNamaz()}},20000);
 function npick(c){ncity=c;store.set('ncity',c);addRecent(c);loadNamaz()}
 setupSearch('#nq','#nsug',npick);
 $('#nloc').onclick=()=>locate(npick);
 $('#nrc').onclick=e=>{const b=e.target.closest('[data-r]');if(b)npick(recents[+b.dataset.r])};
 $('#nm').onchange=e=>{nm=+e.target.value;store.set('nmethod',nm);loadNamaz()};
 $('#ns').onchange=e=>{ns=+e.target.value;store.set('nschool',ns);loadNamaz()};
+
+/* ---------- Namaz alarms ---------- */
+const AL=['Fajr','Dhuhr','Asr','Maghrib','Isha'],AR=Object.fromEntries(PR);
+let alarms=store.get('alarms',{}),fired=store.get('afired',[]),aud=null,audOk=false,ringing=null,rStop=null,rVib=null,rSnz=null,title0='';
+const BELL='<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.500-2V10a4.500 4.500 0 0 0-9 0v5zM10 20a2 2 0 0 0 4 0"/></svg>';
+/* the alarm sound is generated here: a rising bell chime that loops until stopped */
+function makeWav(){const sr=22050,n=sr*3,b=new ArrayBuffer(44+n*2),v=new DataView(b),w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVEfmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+  const notes=[[0,523.25],[.35,659.25],[.7,783.99],[1.05,1046.5],[1.6,783.99],[1.95,1046.5]];
+  for(let i=0;i<n;i++){const t=i/sr;let x=0;for(const[st,f]of notes){const d=t-st;if(d>=0&&d<1.2)x+=Math.exp(-3*d)*(1-Math.exp(-d*300))*(Math.sin(6.2832*f*d)+.3*Math.sin(12.5664*f*d))}v.setInt16(44+i*2,Math.max(-1,Math.min(1,x*.45))*32767,true)}
+  return b}
+const A=()=>aud||(aud=Object.assign(new Audio(URL.createObjectURL(new Blob([makeWav()],{type:'audio/wav'}))),{loop:true,preload:'auto'}));
+/* browsers only allow sound after a tap, so the first tap unlocks it */
+function unlockAudio(){if(audOk)return;const a=A();a.muted=true;a.play().then(()=>{if(!ringing){a.pause();a.currentTime=0}a.muted=false;audOk=true;paintAlarm()}).catch(()=>{a.muted=false})}
+addEventListener('pointerdown',()=>{if(!audOk&&AL.some(p=>alarms[p]))unlockAudio()},{passive:true});
+const askNotify=()=>{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission().then(paintAlarm).catch(()=>{})};
+async function notify(name,time){
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  const o={body:`${t12(time)} · ${ncity.name}`,icon:'icons/icon-192.png',badge:'icons/favicon.png',tag:'namaz-alarm',renotify:true,requireInteraction:true,vibrate:[400,200,400,200,400]};
+  try{const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(reg)await reg.showNotification(`It’s time for ${name}`,o);else new Notification(`It’s time for ${name}`,o)}catch(e){}
+}
+function paintAlarm(){
+  $$('#ntimes .bell').forEach(b=>{const on=!!alarms[b.dataset.al];b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',`Alarm for ${b.dataset.al}: ${on?'on':'off'}`)});
+  const all=AL.every(p=>alarms[p]),a=$('#alall');a.classList.toggle('on',all);a.setAttribute('aria-pressed',String(all));$('#alalls').textContent=all?'All alarms on':'Alarm for all';
+  const any=AL.some(p=>alarms[p]);let m='Alarms ring while SkyRate is open and follow the city above. Keep your volume on.';
+  if(any&&!audOk)m+=' Tap anywhere on the page once so the alarm can play sound.';
+  if(any&&'Notification' in window&&Notification.permission==='denied')m+=' Notifications are blocked, so the alarm shows only inside the app.';
+  $('#alnote').textContent=m;
+}
+function setAlarms(list,on){list.forEach(p=>alarms[p]=on);store.set('alarms',alarms);if(on){unlockAudio();askNotify()}paintAlarm()}
+$('#ntimes').onclick=e=>{const b=e.target.closest('[data-al]');if(b)setAlarms([b.dataset.al],!alarms[b.dataset.al])};
+$('#alall').onclick=()=>setAlarms(AL,!AL.every(p=>alarms[p]));
+function ring(name,time,test){
+  if(ringing)return;ringing={name,time,test};title0=document.title;
+  $('#alsub').textContent=test?'Alarm test':'It’s time for';
+  $('#alname').textContent=test?'Namaz alarm':name;
+  $('#alar').textContent=test?'':(AR[name]||'');
+  $('#alt').textContent=test?'This is how your alarm will look and sound.':`${t12(time)} · ${ncity.name}`;
+  $('#alhint').hidden=true;$('#alsnz').hidden=!!test;
+  document.title='⏰ '+(test?'Alarm test':name+' time');
+  const d=$('#alr');if(!d.open)d.showModal();
+  const a=A();a.currentTime=0;a.muted=false;a.play().then(()=>{audOk=true;paintAlarm()}).catch(()=>{$('#alhint').hidden=false});
+  const vib=()=>navigator.vibrate&&navigator.vibrate([500,250,500,250,500]);vib();rVib=setInterval(vib,3500);
+  rStop=setTimeout(stopRing,test?9000:120000);
+  if(!test)notify(name,time);
+}
+function stopRing(){
+  if(!ringing)return;clearTimeout(rStop);clearInterval(rVib);if(aud){aud.pause();aud.currentTime=0}
+  if(navigator.vibrate)navigator.vibrate(0);document.title=title0;ringing=null;const d=$('#alr');if(d.open)d.close();
+}
+function snooze(){const r=ringing;if(!r)return;stopRing();clearTimeout(rSnz);rSnz=setTimeout(()=>ring(r.name,r.time),300000);toast('Snoozed for 5 minutes')}
+$('#alstop').onclick=stopRing;$('#alsnz').onclick=snooze;
+$('#alr').addEventListener('close',stopRing);
+$('#alr').addEventListener('click',()=>{if(ringing&&aud&&aud.paused)aud.play().then(()=>{$('#alhint').hidden=true}).catch(()=>{})});
+$('#altest').onclick=()=>ring('',null,true);
+/* checks every second; rings when a switched-on prayer time arrives in the selected city (within 2 minutes, once per day) */
+function alarmTick(){
+  if(!N||ringing)return;const tz=N.meta.timezone,d=dateIn(tz);if(d!==N.date.gregorian.date)return;
+  const now=nowIn(tz);
+  for(const p of AL){if(!alarms[p])continue;const t=secOf(N.timings[p]),k=d+'|'+p+'|'+ncity.lat+','+ncity.lon;
+    if(now>=t&&now<t+120&&!fired.includes(k)){fired=[...fired.slice(-19),k];store.set('afired',fired);ring(p,N.timings[p]);break}}
+}
+setInterval(alarmTick,1000);
 
 /* Qibla: bearing from the city to the Kaaba (great-circle) */
 const KAABA=[21.422487,39.826206],PTS=['North','North-northeast','Northeast','East-northeast','East','East-southeast','Southeast','South-southeast','South','South-southwest','Southwest','West-southwest','West','West-northwest','Northwest','North-northwest'];
@@ -250,4 +326,4 @@ async function toggleCmp(){
 }
 $('#cmpbtn').onclick=toggleCmp;
 
-loadWeather();loadRates();route();
+loadWeather();loadRates();if(AL.some(p=>alarms[p]))startNamaz();route();
