@@ -1,4 +1,4 @@
-const V='skyrate-v2',SHELL=['./','index.html','style.css','script.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png','icons/favicon.png'];
+const V='skyrate-v3',SHELL=['./','index.html','style.css','script.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png','icons/favicon.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{
@@ -9,4 +9,9 @@ self.addEventListener('fetch',e=>{
       .catch(()=>hit||(r.mode==='navigate'?caches.match('index.html'):Response.error()));
     return hit||net;
   }));
+});
+
+self.addEventListener('notificationclick',e=>{
+  e.notification.close();
+  e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(l=>{const c=l.find(x=>'focus' in x);return c?c.focus():clients.openWindow('./#namaz')}));
 });
