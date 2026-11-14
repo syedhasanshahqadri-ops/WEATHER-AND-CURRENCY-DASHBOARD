@@ -37,12 +37,15 @@ const W=[
 const TARGETS=[11,33,41,100,313,500,1000];
 const SIZES=[1.4,1.7,2,2.4,2.9];
 const DEF_SET={vib:true,snd:false,wake:false,txt:true,sz:2};
+const GROUPS={durood:'Durood',kalma:'Kalma',zikr:'Zikr',free:'Other'};
 
 let cur=store.get('ccur','d1');
 if(!W.some(w=>w.id===cur))cur='d1';
 let counts=store.get('cnt',{}),targets=store.get('ctg',{});
 let cfg=Object.assign({},DEF_SET,store.get('cset',{}));
 let day=store.get('cday',{d:'',n:0});
+let azf=store.get('cazf','all');
+if(!['all','durood','kalma','zikr'].includes(azf))azf='all';
 
 const item=()=>W.find(w=>w.id===cur);
 const total=()=>Math.max(0,counts[cur]|0);
@@ -50,6 +53,7 @@ const target=()=>Math.max(1,targets[cur]|0||33);
 const dkey=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const today=()=>day.d===dkey()?day.n:0;
 const saveCfg=()=>store.set('cset',cfg);
+const num=n=>n.toLocaleString('en-US');
 
 /* ----- feedback: vibration and a soft click ----- */
 let actx=null;
@@ -77,51 +81,68 @@ addEventListener('hashchange',()=>{inView()?wake():unwake()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)wake()});
 
 /* ----- drawing ----- */
-function drawCats(){
-  const box=$('#kcat');box.textContent='';
-  const c=item().c;
+function buildSelect(){
+  const s=$('#kz');s.textContent='';
   CATS.forEach(k=>{
-    const b=document.createElement('button');b.type='button';b.textContent=k.name;b.dataset.c=k.id;
-    b.className=k.id===c?'on':'';b.setAttribute('aria-pressed',k.id===c);
-    box.appendChild(b);
+    const g=document.createElement('optgroup');g.label=GROUPS[k.id];
+    W.filter(w=>w.c===k.id).forEach(w=>{
+      const o=document.createElement('option');o.value=w.id;o.textContent=w.n;g.appendChild(o);
+    });
+    s.appendChild(g);
   });
-}
-function drawItems(){
-  const box=$('#kitems'),c=item().c,list=W.filter(w=>w.c===c);
-  box.textContent='';
-  box.hidden=list.length<2;
-  list.forEach(w=>{
-    const b=document.createElement('button');b.type='button';b.className='chip'+(w.id===cur?' on':'');
-    b.textContent=w.s;b.dataset.id=w.id;b.setAttribute('aria-pressed',w.id===cur);
-    box.appendChild(b);
-  });
-  const on=box.querySelector('.on');
-  if(on&&on.scrollIntoView)try{box.scrollTo({left:Math.max(0,on.offsetLeft-box.clientWidth/2+on.offsetWidth/2)})}catch(e){}
 }
 function drawText(){
-  const w=item(),i=W.indexOf(w)+1;
+  const w=item();
+  $('#kz').value=cur;
   $('#kname').textContent=w.n;
-  $('#kpos').textContent=i+' of '+W.length;
-  const tx=$('#ktext'),ar=$('#kar');
-  ar.textContent=w.a;
-  tx.style.setProperty('--az',SIZES[cfg.sz]+'rem');
+  const tx=$('#ktext');
+  $('#kar').textContent=w.a;
   tx.hidden=!cfg.txt||!w.a;
   tx.scrollTop=0;
+  $('#v-counter').style.setProperty('--az',SIZES[cfg.sz]+'rem');
+}
+function badge(id){const t=counts[id]|0;return t>0?num(t)+' counted':''}
+function drawFilter(){
+  const box=$('#kcat');box.textContent='';
+  [{id:'all',name:'All'}].concat(CATS.filter(k=>k.id!=='free')).forEach(k=>{
+    const b=document.createElement('button');b.type='button';b.textContent=k.name;b.dataset.c=k.id;
+    b.className=k.id===azf?'on':'';b.setAttribute('aria-pressed',k.id===azf);
+    box.appendChild(b);
+  });
+}
+function drawAz(){
+  const box=$('#azl');box.textContent='';
+  CATS.filter(k=>k.id!=='free'&&(azf==='all'||azf===k.id)).forEach(k=>{
+    const h=document.createElement('h3');h.className='azg';h.textContent=GROUPS[k.id];box.appendChild(h);
+    W.filter(w=>w.c===k.id).forEach(w=>{
+      const on=w.id===cur;
+      const card=document.createElement('article');card.className='az'+(on?' on':'');card.dataset.id=w.id;
+      const hd=document.createElement('div');hd.className='azh';
+      const t=document.createElement('h4');t.textContent=w.n;
+      const c=document.createElement('span');c.className='azc';c.textContent=badge(w.id);
+      hd.append(t,c);
+      const p=document.createElement('p');p.className='azt';p.lang='ar';p.dir='rtl';p.textContent=w.a;
+      const b=document.createElement('button');b.type='button';b.className='kb';b.dataset.id=w.id;
+      b.textContent=on?'Counting now':'Use in counter';b.setAttribute('aria-pressed',on);
+      card.append(hd,p,b);box.appendChild(card);
+    });
+  });
 }
 function drawCount(pulse){
   const t=total(),g=target(),r=Math.floor(t/g),m=t%g;
   const shown=t===0?0:(m===0?g:m);
-  $('#kn').textContent=shown.toLocaleString('en-US');
-  $('#kof').textContent='of '+g.toLocaleString('en-US');
+  $('#kn').textContent=num(shown);
+  $('#kof').textContent='of '+num(g);
   const pg=$('#kpg'),p=shown/g;
   pg.style.strokeDashoffset=String(100-p*100);
   pg.style.opacity=shown===0?'0':'1';
-  $('#kround').textContent=r.toLocaleString('en-US');
-  $('#ktot').textContent=t.toLocaleString('en-US');
-  $('#kday').textContent=today().toLocaleString('en-US');
+  $('#kround').textContent=num(r);
+  $('#ktot').textContent=num(t);
+  $('#kday').textContent=num(today());
   $('#ktap').setAttribute('aria-label','Add one. Count is '+shown+' of '+g);
   $('#kundo').disabled=t===0;
   $('#kreset').disabled=t===0;
+  const c=$('.az[data-id="'+cur+'"] .azc');if(c)c.textContent=badge(cur);
   if(pulse){const k=$('#kring');k.classList.remove('done');void k.offsetWidth;k.classList.add('done')}
 }
 function drawTargets(){
@@ -143,12 +164,12 @@ function drawSettings(){
   $('#kwakes').textContent=can?'Stops the screen from turning off while you count.':'Not supported on this browser.';
   $('#kszm').disabled=cfg.sz<=0;$('#kszp').disabled=cfg.sz>=SIZES.length-1;
 }
-function drawAll(){drawCats();drawItems();drawText();drawTargets();drawCount();drawSettings()}
+function drawAll(){drawText();drawFilter();drawAz();drawTargets();drawCount();drawSettings()}
 
 /* ----- actions ----- */
 function pick(id){
-  if(!W.some(w=>w.id===id)||id===cur)return;
-  cur=id;store.set('ccur',cur);drawAll();
+  if(!W.some(w=>w.id===id)||id===cur)return false;
+  cur=id;store.set('ccur',cur);drawAll();return true;
 }
 function add(){
   const g=target();
@@ -182,9 +203,8 @@ function setTarget(n){
   targets[cur]=n;store.set('ctg',targets);drawTargets();drawCount();
 }
 function step(d){
-  const l=W.filter(w=>w.c===item().c),i=l.indexOf(item()),all=W.indexOf(item());
-  if(l.length>1){pick(l[(i+d+l.length)%l.length].id)}
-  else pick(W[(all+d+W.length)%W.length].id);
+  const i=W.indexOf(item());
+  pick(W[(i+d+W.length)%W.length].id);
 }
 
 /* ----- events ----- */
@@ -193,11 +213,18 @@ $('#kundo').onclick=undo;
 $('#kreset').onclick=reset;
 $('#kprev').onclick=()=>step(-1);
 $('#knext').onclick=()=>step(1);
+$('#kz').onchange=e=>pick(e.target.value);
 $('#kcat').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
-  const first=W.find(w=>w.c===b.dataset.c);if(first)pick(first.id);
+  azf=b.dataset.c;store.set('cazf',azf);drawFilter();drawAz();
 });
-$('#kitems').addEventListener('click',e=>{const b=e.target.closest('button');if(b)pick(b.dataset.id)});
+$('#azl').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-id]');if(!b)return;
+  if(pick(b.dataset.id)){
+    scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+    toast('Counting '+item().n);
+  }
+});
 $('#ktg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setTarget(b.dataset.n)});
 $('#kcus').onclick=()=>setTarget($('#kcu').value);
 $('#kcu').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();setTarget($('#kcu').value)}});
@@ -209,7 +236,7 @@ $('#kszm').onclick=()=>{if(cfg.sz>0){cfg.sz--;saveCfg();drawText();drawSettings(
 $('#kszp').onclick=()=>{if(cfg.sz<SIZES.length-1){cfg.sz++;saveCfg();drawText();drawSettings()}};
 $('#kclear').onclick=()=>{
   if(!confirm('Clear the counts for every wazifa on this device?'))return;
-  counts={};day={d:'',n:0};store.set('cnt',counts);store.set('cday',day);drawCount();toast('All counts cleared');
+  counts={};day={d:'',n:0};store.set('cnt',counts);store.set('cday',day);drawAz();drawCount();toast('All counts cleared');
 };
 
 /* Space, Enter or Arrow Up counts when nothing else is focused. Arrow Down undoes. */
@@ -219,6 +246,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='ArrowDown'){e.preventDefault();undo()}
 });
 
+buildSelect();
 drawAll();
 if(inView())wake();
 })();
