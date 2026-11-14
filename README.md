@@ -1,6 +1,6 @@
 # SkyRate
 
-A responsive weather, namaz times and currency app that you can install on your phone or computer. Built with plain HTML, CSS and JavaScript. No frameworks, no build tools and no API keys needed.
+A responsive weather, namaz times, tasbih counter and currency app that you can install on your phone or computer. Built with plain HTML, CSS and JavaScript. No frameworks, no build tools and no API keys needed.
 
 ## Features
 
@@ -17,6 +17,14 @@ A responsive weather, namaz times and currency app that you can install on your 
   - Calculation method and Asr time (Hanafi or Standard) settings
   - **Alarms:** a bell button on every prayer turns its alarm on or off, and **Alarm for all** switches all five at once
   - **Qibla compass:** shows the Qibla bearing for the selected city, and a live compass on phones with a sensor
+- **Counter screen:** a tasbih counter for wazaif, durood, kalma and zikr
+  - Selector with four groups: **Durood** (4), **Kalma** (Kalma 1 to 6), **Zikr** (Tasbih, Istighfar, SubhanAllah, Alhamdulillah, Allahu Akbar and more) and a **Free** counter with no text
+  - Arabic text for the selected wazifa, with larger or smaller text and a switch to hide it
+  - One big tap circle with a progress ring, plus Undo and Reset
+  - Target per round (11, 33, 41, 100, 313, 500, 1000 or your own number), rounds completed, total for the wazifa and today's total
+  - Every wazifa remembers its own count and target on your device
+  - Optional vibration, sound and keep screen on
+  - On a computer: Space, Enter or Arrow Up counts and Arrow Down undoes
 - **Currency screen:** converter for 150+ currencies, quick amounts and popular rate cards
 - **Install as an app:** an Install app button in the top bar and a dismissible banner
 - **Offline support:** the app opens offline and shows your last saved weather, prayer times and rates
@@ -43,6 +51,7 @@ skyrate/
 ├── index.html
 ├── style.css
 ├── script.js
+├── counter.js
 ├── sw.js
 ├── manifest.webmanifest
 ├── README.md
@@ -89,11 +98,12 @@ All are free to use without a key. The weather refreshes every 10 minutes and th
 - **Default city:** change the `city` object (Weather) or `ncity` object (Namaz) in `script.js`.
 - **Default currency pair:** change `pair` in the currency section in `script.js`.
 - **Popular rates list:** edit the `POP` array in `script.js`.
+- **Counter wazaif:** add, remove or edit entries in the `W` list at the top of `counter.js`. Change the target buttons in the `TARGETS` list.
 - **Alarm sound:** the chime is made in the `makeWav` function in `script.js`. Change the `notes` list to change the tune.
 - **Snooze length:** change `300000` (5 minutes, in milliseconds) in the `snooze` function in `script.js`.
 - **Colors and fonts:** change the variables at the top of `style.css`.
 - **App name, colors and icons:** edit `manifest.webmanifest` and replace the files in `icons/`.
-- **After updating the files on GitHub:** change `V='skyrate-v3'` in `sw.js` to a new name, such as `skyrate-v4`. Installed apps then update themselves.
+- **After updating the files on GitHub:** change `V='skyrate-v4'` in `sw.js` to a new name, such as `skyrate-v5`. Installed apps then update themselves.
 
 ## Tech
 
@@ -101,7 +111,7 @@ All are free to use without a key. The weather refreshes every 10 minutes and th
 - CSS3 (custom properties, grid, flexbox)
 - Vanilla JavaScript
 - Progressive Web App: web manifest and service worker
-- Google Fonts: Sora and DM Sans
+- Google Fonts: Sora, DM Sans and Noto Naskh Arabic
 
 ## Author
 
