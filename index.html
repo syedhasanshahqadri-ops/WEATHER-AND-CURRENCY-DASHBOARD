@@ -86,32 +86,44 @@
 <section class="view" id="v-counter" hidden><div class="wrap">
 <div class="vh"><h1>Counter</h1><p>A tasbih counter for wazaif, durood, kalma and zikr. Your counts are saved on this device.</p></div>
 <div class="kg">
-<section class="cd ksel" aria-label="Choose a wazifa">
-<div class="seg kcat" id="kcat" role="group" aria-label="Category"></div>
-<div class="rc kitems" id="kitems" role="group" aria-label="Wazaif"></div>
-<div class="khead"><button class="ib" id="kprev" type="button" aria-label="Previous wazifa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><div class="kti"><h2 id="kname">Durood Shareef 1</h2><span class="mu sm" id="kpos"></span></div><button class="ib" id="knext" type="button" aria-label="Next wazifa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></div>
-<div class="ktext" id="ktext"><p id="kar" lang="ar" dir="rtl"></p></div>
-</section>
 
-<section class="cd kct" aria-label="Counter">
+<section class="cd kct" id="kct" aria-label="Counter">
+<div class="khead"><button class="ib" id="kprev" type="button" aria-label="Previous wazifa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><div class="fld"><label class="sr" for="kz">Choose a wazifa</label><select id="kz"></select></div><button class="ib" id="knext" type="button" aria-label="Next wazifa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></div>
+<div class="kin">
+<div class="kleft">
 <div class="kring" id="kring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="tr" cx="60" cy="60" r="54"/><circle class="pg" id="kpg" cx="60" cy="60" r="54" pathLength="100"/></svg>
 <button class="tap" id="ktap" type="button"><b id="kn">0</b><small id="kof">of 33</small></button></div>
 <p class="mu sm kh">Tap the circle to count</p>
 <div class="kact"><button class="kb" id="kundo" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span>Undo</span></button><button class="kb" id="kreset" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.600-5.900L4 8.500"/><path d="M4 4v4.500h4.500"/></svg><span>Reset</span></button></div>
+</div>
+<div class="kright">
+<h2 class="kname" id="kname">Durood Shareef 1</h2>
+<div class="ktext" id="ktext"><p id="kar" lang="ar" dir="rtl"></p></div>
 <div class="kst"><div class="tl"><span>Rounds</span><b id="kround">0</b></div><div class="tl"><span>Total</span><b id="ktot">0</b></div><div class="tl"><span>Today</span><b id="kday">0</b></div></div>
 <h3 class="kl">Target per round</h3>
 <div class="qa" id="ktg" role="group" aria-label="Target per round"></div>
 <div class="kcr"><div class="fld"><label for="kcu">Custom target</label><input id="kcu" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="For example 786"></div><button class="kb" id="kcus" type="button">Set</button></div>
+</div>
+</div>
+</section>
+
+<section class="cd kaz" id="kaz" aria-label="All azkaar">
+<div class="rh"><h2>All azkaar</h2><span class="mu sm">Read any wazifa here. Press Use in counter to count it.</span></div>
+<div class="seg kcat" id="kcat" role="group" aria-label="Show category"></div>
+<div class="azl" id="azl"></div>
 </section>
 
 <section class="cd kset"><h2>Counter settings</h2>
+<div class="sws">
 <label class="sw"><span>Vibrate on tap<small class="mu">Short buzz on each count, longer when a round is complete.</small></span><input type="checkbox" id="kvib"><i></i></label>
 <label class="sw"><span>Sound<small class="mu">A soft click on each count and a chime for a completed round.</small></span><input type="checkbox" id="ksnd"><i></i></label>
 <label class="sw"><span>Keep screen on<small class="mu" id="kwakes"></small></span><input type="checkbox" id="kwake"><i></i></label>
-<label class="sw"><span>Show Arabic text<small class="mu">Hide it if you already know the wazifa by heart.</small></span><input type="checkbox" id="ktxt"><i></i></label>
-<div class="sw ksz"><span>Text size</span><div class="seg"><button id="kszm" type="button" aria-label="Smaller text">A−</button><button id="kszp" type="button" aria-label="Larger text">A+</button></div></div>
+<label class="sw"><span>Show text under the counter<small class="mu">The full list of azkaar below always stays visible.</small></span><input type="checkbox" id="ktxt"><i></i></label>
+<div class="sw ksz"><span>Text size<small class="mu">Changes the Arabic text everywhere in this screen.</small></span><div class="seg"><button id="kszm" type="button" aria-label="Smaller text">A−</button><button id="kszp" type="button" aria-label="Larger text">A+</button></div></div>
+</div>
 <button class="kb kdn" id="kclear" type="button">Clear all counts</button>
 <p class="mu sm" style="margin-top:14px">On a computer, press Space, Enter or Arrow Up to count and Arrow Down to undo.</p></section>
+
 </div>
 </div></section>
 </main>
