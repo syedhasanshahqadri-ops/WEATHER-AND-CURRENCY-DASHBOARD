@@ -1,0 +1,329 @@
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const store={get:(k,d)=>{try{const v=localStorage.getItem('sr-'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set:(k,v)=>{try{localStorage.setItem('sr-'+k,JSON.stringify(v))}catch(e){}}};
+const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2600)};
+
+/* ---------- Theme ---------- */
+const R0=document.documentElement;
+const isDark=()=>(R0.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';
+const paintTheme=()=>{const d=isDark();$('#theme').textContent=d?'☀':'☾';$('#theme').setAttribute('aria-label',d?'Switch to light theme':'Switch to dark theme');$('#tc').content=d?'#080D18':'#F1F4FA'};
+const th=store.get('theme',null);if(th)R0.dataset.theme=th;
+paintTheme();
+$('#theme').onclick=()=>{const t=isDark()?'light':'dark';R0.dataset.theme=t;store.set('theme',t);paintTheme()};
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',paintTheme);
+
+/* ---------- Views: Weather and Currency are separate screens ---------- */
+const VIEWS=['weather','currency','namaz','counter'],TITLES={weather:'Weather',currency:'Currency',namaz:'Namaz times',counter:'Counter'};
+function route(){
+  const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):'weather';
+  VIEWS.forEach(x=>{$('#v-'+x).hidden=x!==v});
+  document.body.dataset.v=v;
+  $$('[data-t]').forEach(a=>{const on=a.dataset.t===v;a.classList.toggle('on',on);on?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});
+  document.title=TITLES[v]+' | SkyRate';
+  if(v==='namaz')startNamaz();
+  scrollTo(0,0);
+}
+addEventListener('hashchange',route);
+
+/* ---------- Install as an app ---------- */
+let dp=null;
+const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const ios=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const syncInstall=()=>{const s=standalone();$('#install').hidden=s;$('#ban').hidden=s||store.get('bandis',false)};
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;syncInstall()});
+addEventListener('appinstalled',()=>{dp=null;syncInstall();toast('SkyRate was installed')});
+async function install(){
+  if(dp){dp.prompt();const c=await dp.userChoice;dp=null;if(c.outcome==='accepted')toast('Installing SkyRate…');return}
+  let h;
+  if(location.protocol==='file:')h='<p>An app can only be installed from a website address. Upload this folder to GitHub Pages (or any https host), open the link, and press <b>Install app</b> again.</p>';
+  else if(ios())h='<ol><li>Tap the <b>Share</b> button in Safari.</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>.</li></ol>';
+  else h='<ol><li>Open this page in <b>Chrome</b> or <b>Edge</b>.</li><li>Click the install icon in the address bar, or open the browser menu and choose <b>Install SkyRate</b> or <b>Add to Home screen</b>.</li></ol><p style="margin-top:12px">If you do not see it, check that the page is opened over https.</p>';
+  $('#insb').innerHTML=h;$('#ins').showModal();
+}
+$('#install').onclick=install;$('#bi').onclick=install;
+$('#bx').onclick=()=>{store.set('bandis',true);syncInstall()};
+$('#insx').onclick=()=>$('#ins').close();
+matchMedia('(display-mode: standalone)').addEventListener?.('change',syncInstall);
+syncInstall();
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
+  const had=!!navigator.serviceWorker.controller;let reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!reloaded){reloaded=true;location.reload()}});
+  addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
+/* ---------- Weather helpers ---------- */
+const LBL={0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Rime fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',56:'Freezing drizzle',57:'Freezing drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',66:'Freezing rain',67:'Freezing rain',71:'Light snow',73:'Snow',75:'Heavy snow',77:'Snow grains',80:'Rain showers',81:'Rain showers',82:'Violent showers',85:'Snow showers',86:'Snow showers',95:'Thunderstorm',96:'Thunderstorm with hail',99:'Thunderstorm with hail'};
+const kind=c=>c<2?'clear':c==2?'pc':c==3?'cloud':c<50?'fog':c<70?'rain':c<80?'snow':c<85?'rain':c<90?'snow':'storm';
+const CL='<path d="M20 44h26a9 9 0 0 0 1-18 13 13 0 0 0-25-2 10 10 0 0 0-2 20z" fill="url(#cg)" stroke="#8FA0BA" stroke-width="1.2"/>';
+const MOON='<path d="M38 12a19 19 0 1 0 14 30A16 16 0 0 1 38 12z" fill="#DCE3F7"/>';
+const SUN=(x,y,r)=>`<g class="rays" style="transform-origin:${x}px ${y}px">${[0,45,90,135,180,225,270,315].map(a=>`<line x1="${x}" y1="${y-r-4}" x2="${x}" y2="${y-r-9}" transform="rotate(${a} ${x} ${y})"/>`).join('')}</g><circle cx="${x}" cy="${y}" r="${r}" fill="#FFC53D"/>`;
+const icon=(k,day=true)=>{let b='';
+  if(k==='clear')b=day?SUN(32,32,11):MOON;
+  else if(k==='pc')b=(day?SUN(22,22,8):`<g transform="translate(-2 -2) scale(.65)">${MOON}</g>`)+`<g transform="translate(6 8) scale(.9)">${CL}</g>`;
+  else{b=`<g transform="translate(0 ${['rain','snow','storm'].includes(k)?-6:0})">${CL}</g>`;
+    if(k==='rain')b+=[24,32,40].map((x,i)=>`<line class="dr" style="animation-delay:${i*.25}s" x1="${x}" y1="44" x2="${x-3}" y2="54"/>`).join('');
+    if(k==='snow')b+=[24,32,40].map((x,i)=>`<circle class="sn" style="animation-delay:${i*.3}s" cx="${x}" cy="48" r="2.4"/>`).join('');
+    if(k==='storm')b+='<path d="M34 36l-8 13h6l-2 11 10-15h-6z" fill="#FFC53D"/>';
+    if(k==='fog')b+=[49,55].map(y=>`<line class="fg" x1="16" y1="${y}" x2="48" y2="${y}"/>`).join('')}
+  return `<svg class="ic" viewBox="0 0 64 64" aria-hidden="true">${b}</svg>`};
+
+let U=store.get('unit','C'),city=store.get('city',{name:'Karachi',admin:'Sindh',country:'Pakistan',lat:24.8607,lon:67.0011}),recents=store.get('recent',[]),W=null,stale=false;
+const T=t=>Math.round(U==='C'?t:t*9/5+32)+'°';
+const WS=v=>U==='C'?Math.round(v)+' km/h':Math.round(v/1.609)+' mph';
+const hr12=h=>(h%12||12)+(h<12?' AM':' PM');
+const tm=s=>{const h=+s.slice(11,13);return (h%12||12)+':'+s.slice(14,16)+(h<12?' AM':' PM')};
+const DIR=d=>['N','NE','E','SE','S','SW','W','NW'][Math.round(d/45)%8];
+const uvL=u=>u<3?'Low':u<6?'Moderate':u<8?'High':u<11?'Very high':'Extreme';
+
+/* ---------- Weather ---------- */
+const wurl=c=>`https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max&timezone=auto&forecast_days=7`;
+async function loadWeather(silent){
+  const h=$('#hero');if(silent!==true){h.dataset.w='load';h.innerHTML='<div class="sk"></div>'}
+  const key=city.lat+','+city.lon;
+  try{const r=await fetch(wurl(city));if(!r.ok)throw 0;W=await r.json();stale=false;store.set('wc',{k:key,d:W})}
+  catch(e){const c=store.get('wc',null);if(c&&c.k===key){W=c.d;stale=true}else{W=null;h.dataset.w='err';h.innerHTML='<div class="err"><h2>Couldn’t load the weather</h2><p class="mu">Check your internet connection and try again.</p><button class="btn" id="retry" type="button">Try again</button></div>';$('#tiles').innerHTML='';$('#hr').innerHTML='';$('#dy').innerHTML='';$('#retry').onclick=loadWeather;return}}
+  renderW();
+}
+function renderW(){
+  const c=W.current,d=W.daily,H=W.hourly,k=kind(c.weather_code),night=!c.is_day,h=$('#hero');
+  h.dataset.w=(k==='clear'||k==='pc')?(night?'night':'clear'):k;
+  h.innerHTML=`<div class="ht"><div><h1>${city.name}</h1><p>${[city.admin,city.country].filter(Boolean).join(', ')}${city.admin||city.country?' · ':''}<span id="lt"></span></p></div><button class="ib gl" id="rf" type="button" aria-label="Refresh weather">↻</button></div>
+<div class="hm"><div><div class="deg">${T(c.temperature_2m)}</div><p class="cond">${LBL[c.weather_code]||'Weather'}</p><div class="hl"><span>High ${T(d.temperature_2m_max[0])}</span><span>Low ${T(d.temperature_2m_min[0])}</span><span>Feels like ${T(c.apparent_temperature)}</span></div></div><div class="hi">${icon(k,!night)}</div></div>
+<p class="upd">Updated ${tm(c.time)}${stale?'<span class="off">Offline, saved data</span>':''}</p>`;
+  $('#rf').onclick=loadWeather;clock();
+  const t=(a,v,x='')=>`<div class="tl"><span>${a}</span><b>${v}</b>${x}</div>`;
+  $('#tiles').innerHTML=[t('Feels like',T(c.apparent_temperature)),t('Humidity',c.relative_humidity_2m+'%',`<div class="mb"><i style="width:${c.relative_humidity_2m}%"></i></div>`),t('Wind',WS(c.wind_speed_10m),`<small><span class="ar" style="transform:rotate(${c.wind_direction_10m+180}deg)">↑</span> from ${DIR(c.wind_direction_10m)}</small>`),t('Pressure',Math.round(c.pressure_msl),'<small>hPa</small>'),t('UV index',Math.round(d.uv_index_max[0]),`<small>${uvL(d.uv_index_max[0])}</small>`),t('Rain chance',(d.precipitation_probability_max[0]??0)+'%'),t('Sunrise',tm(d.sunrise[0])),t('Sunset',tm(d.sunset[0]))].join('');
+  const i0=Math.max(0,H.time.findIndex(x=>x.startsWith(c.time.slice(0,13)))),temps=H.temperature_2m.slice(i0,i0+24),lo=Math.min(...temps),hi=Math.max(...temps);
+  $('#hr').innerHTML=H.time.slice(i0,i0+24).map((x,j)=>{const i=i0+j,p=18+82*(H.temperature_2m[i]-lo)/((hi-lo)||1);return `<div class="hc${j?'':' now'}"><small>${j?hr12(+x.slice(11,13)):'Now'}</small>${icon(kind(H.weather_code[i]),H.is_day[i])}<b>${T(H.temperature_2m[i])}</b><div class="bt"><i style="height:${p}%"></i></div><small>${H.precipitation_probability[i]??0}%</small></div>`}).join('');
+  const dl=Math.min(...d.temperature_2m_min),dh=Math.max(...d.temperature_2m_max),sp=dh-dl||1;
+  $('#dy').innerHTML=d.time.map((x,i)=>{const mn=d.temperature_2m_min[i],mx=d.temperature_2m_max[i];return `<div class="dr2"><b>${i?new Date(x+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'}):'Today'}</b>${icon(kind(d.weather_code[i]))}<small class="pc">${d.precipitation_probability_max[i]??0}%</small><small>${T(mn)}</small><div class="rg"><i style="left:${(mn-dl)/sp*100}%;width:${Math.max(8,(mx-mn)/sp*100)}%"></i></div><b>${T(mx)}</b></div>`}).join('');
+}
+const clock=()=>{const e=$('#lt');if(e&&W)e.textContent=new Date().toLocaleString('en-US',{timeZone:W.timezone,weekday:'short',hour:'numeric',minute:'2-digit'})};
+setInterval(clock,30000);setInterval(()=>loadWeather(true),600000);
+
+/* ---------- Units ---------- */
+const paintUnit=()=>$$('#unit button').forEach(b=>b.classList.toggle('on',b.dataset.u===U));
+$$('#unit button').forEach(b=>b.onclick=()=>{U=b.dataset.u;store.set('unit',U);paintUnit();if(W)renderW()});
+paintUnit();
+
+/* ---------- City search (used by Weather and Namaz) ---------- */
+function setupSearch(qs,us,onPick){
+  const q=$(qs),u=$(us);let sug=[],st;
+  const hide=()=>{u.hidden=true;q.setAttribute('aria-expanded','false')};
+  const show=msg=>{u.innerHTML=msg?`<li><p>${msg}</p></li>`:sug.map((c,i)=>`<li><button type="button" data-i="${i}" role="option"><span>${c.name}</span><small>${[c.admin,c.country].filter(Boolean).join(', ')}</small></button></li>`).join('');u.hidden=false;q.setAttribute('aria-expanded','true')};
+  const choose=c=>{q.value='';hide();onPick(c)};
+  async function go(v){
+    try{const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(v)}&count=6&language=en&format=json`);const j=await r.json();
+      sug=(j.results||[]).map(x=>({name:x.name,admin:x.admin1,country:x.country,lat:x.latitude,lon:x.longitude,tz:x.timezone}));show(sug.length?'':'No city found. Try another spelling.')}
+    catch(e){sug=[];show('Search needs an internet connection.')}
+  }
+  q.oninput=e=>{clearTimeout(st);const v=e.target.value.trim();if(v.length<2)return hide();st=setTimeout(()=>go(v),280)};
+  q.onkeydown=e=>{if(e.key==='Escape')hide();if(e.key==='Enter'&&sug.length&&!u.hidden)choose(sug[0])};
+  u.onclick=e=>{const b=e.target.closest('[data-i]');if(b)choose(sug[+b.dataset.i])};
+  document.addEventListener('click',e=>{if(!q.parentElement.contains(e.target))hide()});
+}
+const addRecent=c=>{recents=[c,...recents.filter(x=>!(x.name===c.name&&x.country===c.country))].slice(0,8);store.set('recent',recents);paintRecents()};
+function pick(c){city=c;store.set('city',c);addRecent(c);loadWeather()}
+function paintRecents(){const h=recents.map((c,i)=>`<button class="chip" type="button" data-r="${i}">${c.name}</button>`).join('');['#rc','#nrc'].forEach(s=>{$(s).hidden=!recents.length;$(s).innerHTML=h})}
+$('#rc').onclick=e=>{const b=e.target.closest('[data-r]');if(b)pick(recents[+b.dataset.r])};
+const locate=cb=>{if(!navigator.geolocation){toast('Location is not supported on this device');return}
+  navigator.geolocation.getCurrentPosition(p=>cb({name:'My location',country:'',lat:p.coords.latitude,lon:p.coords.longitude,tz:Intl.DateTimeFormat().resolvedOptions().timeZone}),()=>toast('Location was blocked. Type a city instead.'))};
+setupSearch('#q','#sug',pick);
+$('#loc').onclick=()=>locate(pick);
+paintRecents();
+
+/* ---------- Currency ---------- */
+let RT=null,pair=store.get('pair',['USD','PKR']),stamp='',rStale=false,DN=null;
+try{DN=new Intl.DisplayNames(['en'],{type:'currency'})}catch(e){}
+const POP=['USD','PKR','EUR','GBP','SAR','AED','INR','CNY','JPY','CAD','AUD','TRY'];
+const nf=(v,m)=>v.toLocaleString('en-US',{maximumFractionDigits:m??(v<1?4:2)});
+async function loadRates(){
+  try{const r=await fetch('https://open.er-api.com/v6/latest/USD');const j=await r.json();if(j.result!=='success')throw 0;RT=j.rates;RT.USD=1;stamp=j.time_last_update_utc;rStale=false;store.set('rc',{rates:RT,stamp})}
+  catch(e){const c=store.get('rc',null);if(!c){$('#outl').textContent='Rates unavailable';$('#out').textContent='--';$('#rt').textContent='Connect to the internet once to load rates.';return}RT=c.rates;stamp=c.stamp;rStale=true}
+  if(!$('#from').options.length)fillCur();
+  convert();
+}
+function fillCur(){
+  const o=Object.keys(RT).sort().map(c=>`<option value="${c}">${c}${DN?' – '+(DN.of(c)||''):''}</option>`).join('');
+  $('#from').innerHTML=o;$('#to').innerHTML=o;
+  $('#from').value=RT[pair[0]]?pair[0]:'USD';$('#to').value=RT[pair[1]]?pair[1]:'PKR';
+}
+function convert(){
+  if(!RT)return;const a=+$('#amt').value||0,f=$('#from').value,t=$('#to').value;
+  pair=[f,t];store.set('pair',pair);
+  $('#outl').textContent=`${nf(a)} ${f} =`;
+  $('#out').textContent=nf(a/RT[f]*RT[t])+' '+t;
+  $('#rt').textContent=`1 ${f} = ${nf(RT[t]/RT[f],4)} ${t}`;
+  $('#rl').innerHTML=POP.filter(c=>c!==f&&RT[c]).map(c=>`<button class="rc2" type="button" data-c="${c}"><b>${c}</b><small>${DN?(DN.of(c)||''):''}</small><span>${nf(RT[c]/RT[f],4)}</span></button>`).join('');
+  $('#up').textContent='Updated '+new Date(stamp).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})+(rStale?' · saved rates':'');
+}
+$('#qa').innerHTML=[1,10,100,1000,10000].map(n=>`<button class="chip" type="button" data-a="${n}">${n.toLocaleString('en-US')}</button>`).join('');
+$('#qa').onclick=e=>{const b=e.target.closest('[data-a]');if(b){$('#amt').value=b.dataset.a;convert()}};
+$('#rl').onclick=e=>{const b=e.target.closest('[data-c]');if(b){$('#to').value=b.dataset.c;convert()}};
+['amt','from','to'].forEach(i=>$('#'+i).addEventListener('input',convert));
+$('#swap').onclick=()=>{const f=$('#from').value;$('#from').value=$('#to').value;$('#to').value=f;convert()};
+setInterval(loadRates,1800000);
+
+
+/* ---------- Namaz times + Qibla compass ---------- */
+var nLoaded=false;
+let ncity=store.get('ncity',{name:'Karachi',admin:'Sindh',country:'Pakistan',lat:24.8607,lon:67.0011,tz:'Asia/Karachi'}),nm=store.get('nmethod',1),ns=store.get('nschool',1),N=null,nstale=false;
+const PR=[['Fajr','الفجر'],['Sunrise','الشروق'],['Dhuhr','الظهر'],['Asr','العصر'],['Maghrib','المغرب'],['Isha','العشاء']];
+const hmOf=s=>{const m=(s||'').match(/(\d{1,2}):(\d{2})/);return m?[+m[1],+m[2]]:[0,0]};
+const t12=s=>{const[h,m]=hmOf(s);return (h%12||12)+':'+String(m).padStart(2,'0')+(h<12?' AM':' PM')};
+const secOf=s=>{const[h,m]=hmOf(s);return h*3600+m*60};
+const dateIn=(tz,off=0)=>{try{return new Date(Date.now()+off*864e5).toLocaleDateString('en-GB',{timeZone:tz||undefined,day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-')}catch(e){return tz?dateIn(undefined,off):''}};
+const nowIn=tz=>{try{const p=new Date().toLocaleTimeString('en-GB',{timeZone:tz||undefined,hourCycle:'h23',hour:'2-digit',minute:'2-digit',second:'2-digit'}).split(':').map(Number);return (p[0]%24)*3600+p[1]*60+p[2]}catch(e){return tz?nowIn():0}};
+function startNamaz(){if(nLoaded)return;nLoaded=true;$('#cmpsvg').innerHTML=dialHTML();$('#nm').value=String(nm);$('#ns').value=String(ns);loadNamaz()}
+async function loadNamaz(){
+  updateQibla();
+  const h=$('#nhero');h.dataset.w='load';h.innerHTML='<div class="sk"></div>';
+  const d=dateIn(ncity.tz),key=[d,ncity.lat,ncity.lon,nm,ns].join('|');
+  const url=`https://api.aladhan.com/v1/timings/${d}?latitude=${ncity.lat}&longitude=${ncity.lon}&method=${nm}&school=${ns}${ncity.tz?'&timezonestring='+encodeURIComponent(ncity.tz):''}`;
+  try{const r=await fetch(url);if(!r.ok)throw 0;const j=await r.json();if(j.code!==200)throw 0;N=j.data;nstale=false;store.set('nc',{k:key,d:N})}
+  catch(e){const c=store.get('nc',null);if(c&&c.k===key){N=c.d;nstale=true}else{N=null;h.dataset.w='err';h.innerHTML='<div class="err"><h2>Couldn’t load the prayer times</h2><p class="mu">Check your internet connection and try again.</p><button class="btn" id="nretry" type="button">Try again</button></div>';$('#ntimes').innerHTML='';$('#nretry').onclick=loadNamaz;return}}
+  renderN();loadTomorrow();
+}
+let NT=null;
+async function loadTomorrow(){
+  const k=[dateIn(ncity.tz,1),ncity.lat,ncity.lon,nm,ns].join('|');
+  try{const r=await fetch(`https://api.aladhan.com/v1/timings/${dateIn(ncity.tz,1)}?latitude=${ncity.lat}&longitude=${ncity.lon}&method=${nm}&school=${ns}${ncity.tz?'&timezonestring='+encodeURIComponent(ncity.tz):''}`);const j=await r.json();if(!r.ok||j.code!==200)throw 0;NT=j.data;store.set('nct',{k,d:NT})}
+  catch(e){const c=store.get('nct',null);NT=c&&c.k===k?c.d:null}
+  paintNext();
+}
+function renderN(){
+  const T0=N.timings,g=N.date.gregorian,hj=N.date.hijri,h=$('#nhero'),mn=(N.meta.method&&N.meta.method.name)||'';
+  h.dataset.w='ok';
+  h.innerHTML=`<svg class="deco" viewBox="0 0 100 100" aria-hidden="true"><path d="M62 10A40 40 0 1 0 90 64 32 32 0 1 1 62 10z" fill="currentColor"/></svg>
+<div class="ht"><div><h1>${ncity.name}</h1><p>${[ncity.admin,ncity.country].filter(Boolean).join(', ')}${ncity.admin||ncity.country?' · ':''}${g.weekday&&g.weekday.en?g.weekday.en+', ':''}${N.date.readable}</p><p class="hj">${hj.day} ${hj.month.en} ${hj.year} AH</p></div><button class="ib gl" id="nrf" type="button" aria-label="Refresh prayer times">↻</button></div>
+<div><p class="nl">Next prayer</p><div class="nn"><span id="nn"></span><b id="nt"></b></div><p class="nc" id="nc"></p></div>
+<p class="upd">${mn?mn+' · ':''}${ns?'Hanafi':'Standard'} Asr${nstale?'<span class="off">Offline, saved times</span>':''}</p>`;
+  $('#nrf').onclick=loadNamaz;
+  $('#ntimes').innerHTML=PR.map(([n,ar])=>`<div class="pr${n==='Sunrise'?' sun':''}" data-p="${n}"><span>${n}</span><small lang="ar" dir="rtl">${ar}</small><b>${t12(T0[n])}</b>${n==='Sunrise'?'':`<button class="bell" type="button" data-al="${n}" aria-pressed="false" aria-label="Alarm for ${n}: off">${BELL}</button>`}</div>`).join('');
+  paintAlarm();paintNext();
+}
+function paintNext(){
+  if(!N)return;const T0=N.timings,now=nowIn(N.meta.timezone);
+  let nx=['Fajr','Dhuhr','Asr','Maghrib','Isha'].find(n=>secOf(T0[n])>now),tom=false,diff;
+  let nt=T0[nx];
+  if(!nx){nx='Fajr';tom=true;nt=NT?NT.timings.Fajr:T0.Fajr;diff=86400-now+secOf(nt)}else diff=secOf(nt)-now;
+  $$('#ntimes .pr').forEach(c=>{const p=c.dataset.p;c.classList.toggle('next',p===nx&&!tom);c.classList.toggle('past',secOf(T0[p])<=now)});
+  const nn=$('#nn');if(!nn)return;
+  nn.textContent=nx+(tom?' (tomorrow)':'');$('#nt').textContent=t12(nt);
+  const m=Math.max(1,Math.ceil(diff/60)),hh=Math.floor(m/60);$('#nc').textContent='in '+(hh?hh+'h ':'')+(m%60)+'m';
+}
+setInterval(()=>{if(!nLoaded||!N)return;paintNext();const d=dateIn(N.meta.timezone);
+  if(d!==N.date.gregorian.date){if(NT&&NT.date.gregorian.date===d){N=NT;NT=null;nstale=false;renderN();loadTomorrow()}else loadNamaz()}},20000);
+function npick(c){ncity=c;store.set('ncity',c);addRecent(c);loadNamaz()}
+setupSearch('#nq','#nsug',npick);
+$('#nloc').onclick=()=>locate(npick);
+$('#nrc').onclick=e=>{const b=e.target.closest('[data-r]');if(b)npick(recents[+b.dataset.r])};
+$('#nm').onchange=e=>{nm=+e.target.value;store.set('nmethod',nm);loadNamaz()};
+$('#ns').onchange=e=>{ns=+e.target.value;store.set('nschool',ns);loadNamaz()};
+
+/* ---------- Namaz alarms ---------- */
+const AL=['Fajr','Dhuhr','Asr','Maghrib','Isha'],AR=Object.fromEntries(PR);
+let alarms=store.get('alarms',{}),fired=store.get('afired',[]),aud=null,audOk=false,ringing=null,rStop=null,rVib=null,rSnz=null,title0='';
+const BELL='<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.500-2V10a4.500 4.500 0 0 0-9 0v5zM10 20a2 2 0 0 0 4 0"/></svg>';
+/* the alarm sound is generated here: a rising bell chime that loops until stopped */
+function makeWav(){const sr=22050,n=sr*3,b=new ArrayBuffer(44+n*2),v=new DataView(b),w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVEfmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+  const notes=[[0,523.25],[.35,659.25],[.7,783.99],[1.05,1046.5],[1.6,783.99],[1.95,1046.5]];
+  for(let i=0;i<n;i++){const t=i/sr;let x=0;for(const[st,f]of notes){const d=t-st;if(d>=0&&d<1.2)x+=Math.exp(-3*d)*(1-Math.exp(-d*300))*(Math.sin(6.2832*f*d)+.3*Math.sin(12.5664*f*d))}v.setInt16(44+i*2,Math.max(-1,Math.min(1,x*.45))*32767,true)}
+  return b}
+const A=()=>aud||(aud=Object.assign(new Audio(URL.createObjectURL(new Blob([makeWav()],{type:'audio/wav'}))),{loop:true,preload:'auto'}));
+/* browsers only allow sound after a tap, so the first tap unlocks it */
+function unlockAudio(){if(audOk)return;const a=A();a.muted=true;a.play().then(()=>{if(!ringing){a.pause();a.currentTime=0}a.muted=false;audOk=true;paintAlarm()}).catch(()=>{a.muted=false})}
+addEventListener('pointerdown',()=>{if(!audOk&&AL.some(p=>alarms[p]))unlockAudio()},{passive:true});
+const askNotify=()=>{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission().then(paintAlarm).catch(()=>{})};
+async function notify(name,time){
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  const o={body:`${t12(time)} · ${ncity.name}`,icon:'icons/icon-192.png',badge:'icons/favicon.png',tag:'namaz-alarm',renotify:true,requireInteraction:true,vibrate:[400,200,400,200,400]};
+  try{const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(reg)await reg.showNotification(`It’s time for ${name}`,o);else new Notification(`It’s time for ${name}`,o)}catch(e){}
+}
+function paintAlarm(){
+  $$('#ntimes .bell').forEach(b=>{const on=!!alarms[b.dataset.al];b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',`Alarm for ${b.dataset.al}: ${on?'on':'off'}`)});
+  const all=AL.every(p=>alarms[p]),a=$('#alall');a.classList.toggle('on',all);a.setAttribute('aria-pressed',String(all));$('#alalls').textContent=all?'All alarms on':'Alarm for all';
+  const any=AL.some(p=>alarms[p]);let m='Alarms ring while SkyRate is open and follow the city above. Keep your volume on.';
+  if(any&&!audOk)m+=' Tap anywhere on the page once so the alarm can play sound.';
+  if(any&&'Notification' in window&&Notification.permission==='denied')m+=' Notifications are blocked, so the alarm shows only inside the app.';
+  $('#alnote').textContent=m;
+}
+function setAlarms(list,on){list.forEach(p=>alarms[p]=on);store.set('alarms',alarms);if(on){unlockAudio();askNotify()}paintAlarm()}
+$('#ntimes').onclick=e=>{const b=e.target.closest('[data-al]');if(b)setAlarms([b.dataset.al],!alarms[b.dataset.al])};
+$('#alall').onclick=()=>setAlarms(AL,!AL.every(p=>alarms[p]));
+function ring(name,time,test){
+  if(ringing)return;ringing={name,time,test};title0=document.title;
+  $('#alsub').textContent=test?'Alarm test':'It’s time for';
+  $('#alname').textContent=test?'Namaz alarm':name;
+  $('#alar').textContent=test?'':(AR[name]||'');
+  $('#alt').textContent=test?'This is how your alarm will look and sound.':`${t12(time)} · ${ncity.name}`;
+  $('#alhint').hidden=true;$('#alsnz').hidden=!!test;
+  document.title='⏰ '+(test?'Alarm test':name+' time');
+  const d=$('#alr');if(!d.open)d.showModal();
+  const a=A();a.currentTime=0;a.muted=false;a.play().then(()=>{audOk=true;paintAlarm()}).catch(()=>{$('#alhint').hidden=false});
+  const vib=()=>navigator.vibrate&&navigator.vibrate([500,250,500,250,500]);vib();rVib=setInterval(vib,3500);
+  rStop=setTimeout(stopRing,test?9000:120000);
+  if(!test)notify(name,time);
+}
+function stopRing(){
+  if(!ringing)return;clearTimeout(rStop);clearInterval(rVib);if(aud){aud.pause();aud.currentTime=0}
+  if(navigator.vibrate)navigator.vibrate(0);document.title=title0;ringing=null;const d=$('#alr');if(d.open)d.close();
+}
+function snooze(){const r=ringing;if(!r)return;stopRing();clearTimeout(rSnz);rSnz=setTimeout(()=>ring(r.name,r.time),300000);toast('Snoozed for 5 minutes')}
+$('#alstop').onclick=stopRing;$('#alsnz').onclick=snooze;
+$('#alr').addEventListener('close',stopRing);
+$('#alr').addEventListener('click',()=>{if(ringing&&aud&&aud.paused)aud.play().then(()=>{$('#alhint').hidden=true}).catch(()=>{})});
+$('#altest').onclick=()=>ring('',null,true);
+/* checks every second; rings when a switched-on prayer time arrives in the selected city (within 2 minutes, once per day) */
+function alarmTick(){
+  if(!N||ringing)return;const tz=N.meta.timezone,d=dateIn(tz);if(d!==N.date.gregorian.date)return;
+  const now=nowIn(tz);
+  for(const p of AL){if(!alarms[p])continue;const t=secOf(N.timings[p]),k=d+'|'+p+'|'+ncity.lat+','+ncity.lon;
+    if(now>=t&&now<t+120&&!fired.includes(k)){fired=[...fired.slice(-19),k];store.set('afired',fired);ring(p,N.timings[p]);break}}
+}
+setInterval(alarmTick,1000);
+
+/* Qibla: bearing from the city to the Kaaba (great-circle) */
+const KAABA=[21.422487,39.826206],PTS=['North','North-northeast','Northeast','East-northeast','East','East-southeast','Southeast','South-southeast','South','South-southwest','Southwest','West-southwest','West','West-northwest','Northwest','North-northwest'];
+function qibla(lat,lon){const r=Math.PI/180,f1=lat*r,f2=KAABA[0]*r,dl=(KAABA[1]-lon)*r;
+  const b=(Math.atan2(Math.sin(dl)*Math.cos(f2),Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl))/r+360)%360;
+  const a=Math.sin((f2-f1)/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;
+  return{b,km:6371*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))}}
+let qb=qibla(ncity.lat,ncity.lon),heading=null,live=false,rot=0,ali=false;
+const md=(x,n)=>((x%n)+n)%n;
+function dialHTML(){
+  let t='';for(let a=0;a<360;a+=5){const len=a%30===0?14:a%10===0?8:5;t+=`<line class="${a%30===0?'tl2':'tk'}" x1="150" y1="20" x2="150" y2="${20+len}" transform="rotate(${a} 150 150)"/>`}
+  const pt=(a,r)=>[150+r*Math.sin(a*Math.PI/180),150-r*Math.cos(a*Math.PI/180)];
+  const card=[['N',0],['E',90],['S',180],['W',270]].map(([c,a])=>{const[x,y]=pt(a,88);return `<text class="${c==='N'?'nrt':''}" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${c}</text>`}).join('');
+  const deg=[30,60,120,150,210,240,300,330].map(a=>{const[x,y]=pt(a,104);return `<text class="dg" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${a}</text>`}).join('');
+  return `<g id="dial"><circle class="ring" cx="150" cy="150" r="136"/>${t}<g id="qn"><line x1="150" y1="150" x2="150" y2="52" stroke="#10B981" stroke-width="4" stroke-linecap="round"/><g transform="translate(150 28)"><rect x="-13" y="-13" width="26" height="26" rx="5" fill="#15181F"/><rect x="-13" y="-6" width="26" height="5" fill="#E2B656"/></g></g>${card}${deg}</g><circle cx="150" cy="150" r="7" fill="var(--tx)"/><path d="M150 3l9 15h-18z" fill="var(--ac)"/>`;
+}
+function updateQibla(){
+  qb=qibla(ncity.lat,ncity.lon);
+  $('#qcity').textContent=ncity.name;
+  $('#qdeg').textContent=qb.b.toFixed(1)+'°';
+  $('#qdir').textContent=PTS[Math.round(qb.b/22.5)%16]+' (measured from North, clockwise)';
+  $('#qdist').textContent=Math.round(qb.km).toLocaleString('en-US')+' km to the Kaaba';
+  const n=$('#qn');if(n)n.setAttribute('transform',`rotate(${qb.b.toFixed(2)} 150 150)`);
+  paintCmp();
+}
+function paintCmp(){
+  const d=$('#dial');if(!d)return;let tgt=0;
+  if(live&&heading!==null){tgt=-heading;const diff=md(qb.b-heading+180,360)-180,ok=Math.abs(diff)<=3;
+    $('#cmp').classList.toggle('ok',ok);
+    $('#qmsg').textContent=ok?'You’re facing the Qibla':`Turn ${diff>0?'right':'left'} ${Math.round(Math.abs(diff))}° to face the Qibla`;
+    if(ok&&!ali&&navigator.vibrate)navigator.vibrate(40);ali=ok}
+  else{$('#cmp').classList.remove('ok');ali=false;$('#qmsg').textContent=live?'Waiting for the compass…':'North is at the top. Turn on the live compass on your phone to rotate the dial with you.'}
+  rot+=md(tgt-rot+180,360)-180;d.style.transform=`rotate(${rot}deg)`;
+}
+function onOri(e){let h=null;if(typeof e.webkitCompassHeading==='number')h=e.webkitCompassHeading;else if(e.absolute&&typeof e.alpha==='number')h=360-e.alpha;if(h===null)return;heading=md(h+((screen.orientation&&screen.orientation.angle)||0),360);paintCmp()}
+async function toggleCmp(){
+  if(live){removeEventListener('deviceorientationabsolute',onOri,true);removeEventListener('deviceorientation',onOri,true);live=false;heading=null;$('#cmpbtn').textContent='Turn on live compass';paintCmp();return}
+  if(!('DeviceOrientationEvent' in window)){toast('This device has no compass sensor');return}
+  try{if(typeof DeviceOrientationEvent.requestPermission==='function'){const r=await DeviceOrientationEvent.requestPermission();if(r!=='granted'){toast('Compass permission was denied');return}}}catch(e){toast('Could not start the compass');return}
+  addEventListener('deviceorientationabsolute',onOri,true);addEventListener('deviceorientation',onOri,true);live=true;$('#cmpbtn').textContent='Turn off live compass';paintCmp();
+  setTimeout(()=>{if(live&&heading===null)toast('No compass reading yet. Use a phone and allow motion sensors.')},2500);
+}
+$('#cmpbtn').onclick=toggleCmp;
+
+loadWeather();loadRates();if(AL.some(p=>alarms[p]))startNamaz();route();

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SkyRate | Weather and currency</title>
+<meta name="description" content="Live weather for any city and live currency exchange rates. Install it as an app.">
+<meta name="theme-color" content="#F1F4FA" id="tc">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SkyRate">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=DM+Sans:wght@400;500;600&family=Noto+Naskh+Arabic:wght@400;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-v="weather">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1F5FB"/><stop offset="1" stop-color="#A9B8CE"/></linearGradient></defs></svg>
+
+<header class="top"><div class="wrap">
+<a class="logo" href="#weather"><img src="icons/icon-192.png" alt="">SkyRate</a>
+<nav class="tabs" aria-label="Sections"><a href="#weather" data-t="weather">Weather</a><a href="#currency" data-t="currency">Currency</a><a href="#namaz" data-t="namaz">Namaz</a><a href="#counter" data-t="counter">Counter</a></nav>
+<div class="nr">
+<button class="inst" id="install" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg><span>Install app</span></button>
+<button class="ib" id="theme" type="button"></button>
+</div>
+</div></header>
+
+<main>
+<section class="view" id="v-weather"><div class="wrap">
+<div class="sbar">
+<div class="sb"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search a city, like Lahore or London" autocomplete="off" aria-label="Search city" aria-controls="sug" aria-expanded="false"><ul id="sug" role="listbox" hidden></ul></div>
+<div class="sa">
+<button class="pill" id="loc" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/><circle cx="12" cy="12" r="7"/></svg><span>My location</span></button>
+<div class="seg" id="unit" role="group" aria-label="Temperature unit"><button type="button" data-u="C">°C</button><button type="button" data-u="F">°F</button></div>
+</div>
+</div>
+<div class="rc" id="rc" aria-label="Recent cities"></div>
+<div class="ban" id="ban" hidden><p><b>Get SkyRate on your device</b><span class="mu sm">Install it like an app. It opens in its own window and works offline with saved data.</span></p><button class="inst" id="bi" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg><span>Install app</span></button><button class="bx" id="bx" type="button" aria-label="Dismiss">×</button></div>
+<div class="wg">
+<section class="hero" id="hero" data-w="load" aria-live="polite"><div class="sk"></div></section>
+<section class="cd dt"><h2>Today’s details</h2><div class="tiles" id="tiles"></div></section>
+<section class="cd hrs"><h2>Next 24 hours</h2><div class="hr" id="hr"></div></section>
+<section class="cd dys"><h2>7-day forecast</h2><div id="dy"></div></section>
+</div>
+</div></section>
+
+<section class="view" id="v-currency" hidden><div class="wrap">
+<div class="vh"><h1>Currency</h1><p>Live exchange rates for more than 150 currencies.</p></div>
+<div class="cg">
+<section class="cd"><h2>Converter</h2>
+<div class="fld"><label for="amt">Amount</label><input id="amt" type="number" inputmode="decimal" step="any" value="1" min="0"></div>
+<div class="qa" id="qa"></div>
+<div class="pair"><div class="fld"><label for="from">From</label><select id="from"></select></div><button class="ib" id="swap" type="button" aria-label="Swap currencies">⇅</button><div class="fld"><label for="to">To</label><select id="to"></select></div></div>
+<div class="cres" aria-live="polite"><small id="outl">Loading…</small><div class="big" id="out">--</div><small id="rt"></small></div>
+</section>
+<section class="cd"><div class="rh"><h2>Popular rates</h2><span class="mu sm" id="up"></span></div><div class="rgrid" id="rl"></div></section>
+</div>
+</div></section>
+
+<section class="view" id="v-namaz" hidden><div class="wrap">
+<div class="sbar">
+<div class="sb"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="nq" type="search" placeholder="Search a city for namaz times" autocomplete="off" aria-label="Search city for namaz times" aria-controls="nsug" aria-expanded="false"><ul id="nsug" role="listbox" hidden></ul></div>
+<div class="sa"><button class="pill" id="nloc" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/><circle cx="12" cy="12" r="7"/></svg><span>My location</span></button></div>
+</div>
+<div class="rc" id="nrc" aria-label="Recent cities"></div>
+<div class="ng">
+<section class="nhero" id="nhero" data-w="load" aria-live="polite"><div class="sk"></div></section>
+<section class="cd ntimes"><div class="rh"><h2>Today’s prayer times</h2><button class="pill" id="alall" type="button" aria-pressed="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.500-2V10a4.500 4.500 0 0 0-9 0v5zM10 20a2 2 0 0 0 4 0"/></svg><span id="alalls">Alarm for all</span></button></div><div class="pt" id="ntimes"></div>
+<div class="alrow"><p class="mu sm" id="alnote"></p><button class="pill" id="altest" type="button">Test alarm</button></div></section>
+<section class="cd nset"><h2>Calculation settings</h2>
+<div class="fld"><label for="nm">Calculation method</label><select id="nm"><option value="1">University of Islamic Sciences, Karachi</option><option value="0">Shia Ithna-Ashari (Jafari)</option><option value="3">Muslim World League</option><option value="2">ISNA (North America)</option><option value="4">Umm al-Qura, Makkah</option><option value="5">Egyptian General Authority</option><option value="13">Diyanet, Turkey</option></select></div>
+<div class="fld"><label for="ns">Asr time</label><select id="ns"><option value="1">Hanafi (later Asr)</option><option value="0">Standard (Shafi’i, Maliki, Hanbali)</option></select></div>
+<p class="mu sm">Times are calculated and can differ by a few minutes from your local mosque. Follow your mosque’s timetable if it is different.</p></section>
+<section class="cd ncmp"><div class="rh"><h2>Qibla compass</h2><span class="mu sm" id="qcity"></span></div>
+<div class="cmp" id="cmp"><svg id="cmpsvg" viewBox="0 0 300 300" role="img" aria-label="Qibla compass"></svg></div>
+<div class="qinfo"><b id="qdeg">--</b><span id="qdir"></span><span class="mu sm" id="qdist"></span></div>
+<p class="qmsg" id="qmsg" aria-live="polite"></p>
+<button class="btn" id="cmpbtn" type="button">Turn on live compass</button>
+<p class="mu sm" style="margin-top:12px">The green needle points to the Kaaba in Makkah from the city you selected. Keep your phone flat and away from metal and magnets. If the needle looks wrong, move the phone in a figure 8 to calibrate it.</p></section>
+</div>
+</div></section>
+<section class="view" id="v-counter" hidden><div class="wrap">
+<div class="vh"><h1>Counter</h1><p>A tasbih counter for wazaif, durood, kalma and zikr. Your counts are saved on this device.</p></div>
+<div class="kg">
+<section class="cd ksel" aria-label="Choose a wazifa">
+<div class="seg kcat" id="kcat" role="group" aria-label="Category"></div>
+<div class="rc kitems" id="kitems" role="group" aria-label="Wazaif"></div>
+<div class="khead"><button class="ib" id="kprev" type="button" aria-label="Previous wazifa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><div class="kti"><h2 id="kname">Durood Shareef 1</h2><span class="mu sm" id="kpos"></span></div><button class="ib" id="knext" type="button" aria-label="Next wazifa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></div>
+<div class="ktext" id="ktext"><p id="kar" lang="ar" dir="rtl"></p></div>
+</section>
+
+<section class="cd kct" aria-label="Counter">
+<div class="kring" id="kring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="tr" cx="60" cy="60" r="54"/><circle class="pg" id="kpg" cx="60" cy="60" r="54" pathLength="100"/></svg>
+<button class="tap" id="ktap" type="button"><b id="kn">0</b><small id="kof">of 33</small></button></div>
+<p class="mu sm kh">Tap the circle to count</p>
+<div class="kact"><button class="kb" id="kundo" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span>Undo</span></button><button class="kb" id="kreset" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.600-5.900L4 8.500"/><path d="M4 4v4.500h4.500"/></svg><span>Reset</span></button></div>
+<div class="kst"><div class="tl"><span>Rounds</span><b id="kround">0</b></div><div class="tl"><span>Total</span><b id="ktot">0</b></div><div class="tl"><span>Today</span><b id="kday">0</b></div></div>
+<h3 class="kl">Target per round</h3>
+<div class="qa" id="ktg" role="group" aria-label="Target per round"></div>
+<div class="kcr"><div class="fld"><label for="kcu">Custom target</label><input id="kcu" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="For example 786"></div><button class="kb" id="kcus" type="button">Set</button></div>
+</section>
+
+<section class="cd kset"><h2>Counter settings</h2>
+<label class="sw"><span>Vibrate on tap<small class="mu">Short buzz on each count, longer when a round is complete.</small></span><input type="checkbox" id="kvib"><i></i></label>
+<label class="sw"><span>Sound<small class="mu">A soft click on each count and a chime for a completed round.</small></span><input type="checkbox" id="ksnd"><i></i></label>
+<label class="sw"><span>Keep screen on<small class="mu" id="kwakes"></small></span><input type="checkbox" id="kwake"><i></i></label>
+<label class="sw"><span>Show Arabic text<small class="mu">Hide it if you already know the wazifa by heart.</small></span><input type="checkbox" id="ktxt"><i></i></label>
+<div class="sw ksz"><span>Text size</span><div class="seg"><button id="kszm" type="button" aria-label="Smaller text">A−</button><button id="kszp" type="button" aria-label="Larger text">A+</button></div></div>
+<button class="kb kdn" id="kclear" type="button">Clear all counts</button>
+<p class="mu sm" style="margin-top:14px">On a computer, press Space, Enter or Arrow Up to count and Arrow Down to undo.</p></section>
+</div>
+</div></section>
+</main>
+
+<footer><div class="wrap">Weather by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>. Rates by <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">ExchangeRate-API</a>.</div></footer>
+
+<nav class="bn" aria-label="Sections">
+<a href="#weather" data-t="weather"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 11a3.500 3.500 0 0 0 1 7z"/></svg>Weather</a>
+<a href="#currency" data-t="currency"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.500 9a3 3 0 0 0-2.500-1.200c-1.500 0-2.700.8-2.700 2s1.200 1.600 2.700 2 2.700.8 2.700 2-1.200 2-2.700 2A3.200 3.200 0 0 1 9.300 15M12 6.500v1.300m0 8.400v1.300"/></svg>Currency</a>
+<a href="#namaz" data-t="namaz"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.500A8 8 0 1 1 9.500 4a6.500 6.500 0 0 0 10.500 10.500z"/></svg>Namaz</a>
+<a href="#counter" data-t="counter"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14M11 5v14M15 5v14M19 5v14M4 16 21 8"/></svg>Counter</a>
+</nav>
+
+<dialog id="ins"><h2>Install SkyRate</h2><div id="insb"></div><button class="btn" id="insx" type="button">Got it</button></dialog>
+<dialog id="alr" aria-labelledby="alname"><div class="alb"><svg class="bellbig" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.500-2V10a4.500 4.500 0 0 0-9 0v5zM10 20a2 2 0 0 0 4 0" fill="currentColor"/></svg></div><p class="mu" id="alsub">It’s time for</p><h2 id="alname">Fajr</h2><p class="alar" id="alar" lang="ar" dir="rtl"></p><p class="alt" id="alt"></p><p class="mu sm" id="alhint" hidden>Tap the screen to hear the alarm.</p><div class="alact"><button class="btn" id="alstop" type="button">Stop alarm</button><button class="btn alt2" id="alsnz" type="button">Snooze 5 min</button></div></dialog>
+<div class="toast" id="toast" role="status"></div>
+<script src="script.js"></script>
+<script src="counter.js"></script>
+</body>
+</html>
